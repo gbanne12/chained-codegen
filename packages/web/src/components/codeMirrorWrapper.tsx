@@ -45,6 +45,7 @@ export interface SourceProps {
   focusOnChange?: boolean;
   wrapLines?: boolean;
   onChange?: (text: string) => void;
+  onCursorChange?: (line: number) => void;
   dataTestId?: string;
   placeholder?: string;
 }
@@ -62,6 +63,7 @@ export const CodeMirrorWrapper: React.FC<SourceProps> = ({
   focusOnChange,
   wrapLines,
   onChange,
+  onCursorChange,
   dataTestId,
   placeholder,
 }) => {
@@ -181,16 +183,26 @@ export const CodeMirrorWrapper: React.FC<SourceProps> = ({
       codemirror.scrollIntoView({ line: Math.max(0, revealLine - 1), ch: 0 }, 50);
 
     let changeListener: () => void | undefined;
+    let cursorListener: () => void | undefined;
     if (onChange) {
       changeListener = () => onChange(codemirror.getValue());
       codemirror.on('change', changeListener);
+    }
+    if (onCursorChange) {
+      cursorListener = () => {
+        const cursor = codemirror.getCursor();
+        onCursorChange(cursor.line);
+      };
+      codemirror.on('cursorActivity', cursorListener);
     }
 
     return () => {
       if (changeListener)
         codemirror.off('change', changeListener);
+      if (cursorListener)
+        codemirror.off('cursorActivity', cursorListener);
     };
-  }, [codemirror, text, highlight, revealLine, focusOnChange, onChange]);
+  }, [codemirror, text, highlight, revealLine, focusOnChange, onChange, onCursorChange]);
 
   return <div data-testid={dataTestId} className='cm-wrapper' ref={codemirrorElement} onClick={onCodeMirrorClick}></div>;
 };

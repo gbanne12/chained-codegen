@@ -49,6 +49,8 @@ export const Recorder: React.FC<RecorderProps> = ({
   const [selectedTab, setSelectedTab] = useSetting<string>('recorderPropertiesTab', 'log');
   const [ariaSnapshot, setAriaSnapshot] = React.useState<string | undefined>();
   const [ariaSnapshotErrors, setAriaSnapshotErrors] = React.useState<SourceHighlight[]>();
+  const [currentLine, setCurrentLine] = React.useState<number>(0);
+  const [sourceText, setSourceText] = React.useState<string>('');
 
   const fileId = selectedFileId || runningFileId || sources[0]?.id;
 
@@ -132,6 +134,74 @@ export const Recorder: React.FC<RecorderProps> = ({
       window.dispatch({ event: 'highlightRequested', params: { ariaTemplate: fragment } });
   }, [mode]);
 
+  // Sync source text state
+  React.useEffect(() => {
+    setSourceText(source.text);
+  }, [source.text]);  const moveLineUp = React.useCallback(() => {
+    if (currentLine <= 0)
+      return;
+    const lines = sourceText.split('\n');
+    if (currentLine >= lines.length)
+      return;
+
+    // Swap current line with the one above
+    const temp = lines[currentLine];
+    lines[currentLine] = lines[currentLine - 1];
+    lines[currentLine - 1] = temp;
+    const newText = lines.join('\n');
+    setSourceText(newText);
+    setCurrentLine(currentLine - 1);
+    // Note: This only updates the UI, not the underlying actions
+    // In a future enhancement, we could map line changes back to action rearrangement
+  }, [currentLine, sourceText]);
+
+  const moveLineDown = React.useCallback(() => {
+    const lines = sourceText.split('\n');
+    if (currentLine >= lines.length - 1)
+      return;
+    // Swap current line with the one below
+    const temp = lines[currentLine];
+    lines[currentLine] = lines[currentLine + 1];
+    lines[currentLine + 1] = temp;
+    const newText = lines.join('\n');
+    setSourceText(newText);
+    setCurrentLine(currentLine + 1);
+    // Note: This only updates the UI, not the underlying actions
+    // In a future enhancement, we could map line changes back to action rearrangement
+  }, [currentLine, sourceText]);
+
+  const onCursorChange = React.useCallback((line: number) => {
+    setCurrentLine(line);
+  }, []);
+
+  const onSourceChange = React.useCallback((text: string) => {
+    setSourceText(text);
+    // Note: This only updates the UI, not the underlying actions
+    // In a future enhancement, we could map changes back to action modifications
+  }, []);
+
+  // Add keyboard shortcuts for moving lines
+  React.useEffect(() => {
+    const handleKeyDown = (event: KeyboardEvent) => {
+      switch (event.key) {
+        case 'ArrowUp':
+          if (event.altKey) {
+            event.preventDefault();
+            moveLineUp();
+          }
+          break;
+        case 'ArrowDown':
+          if (event.altKey) {
+            event.preventDefault();
+            moveLineDown();
+          }
+          break;
+      }
+    };
+    document.addEventListener('keydown', handleKeyDown);
+    return () => document.removeEventListener('keydown', handleKeyDown);
+  }, [moveLineUp, moveLineDown]);
+
   return <div className='recorder'>
     <Toolbar>
       <ToolbarButton icon='circle-large-filled' title='Record' toggled={mode === 'recording' || mode === 'recording-inspecting' || mode === 'assertingText' || mode === 'assertingVisibility' || mode === 'assertingValue' || mode === 'assertingSnapshot' || mode === 'assertingClickable' || mode === 'assertingDetached' || mode === 'assertingFocus'} onClick={() => {
@@ -180,6 +250,8 @@ export const Recorder: React.FC<RecorderProps> = ({
       <ToolbarButton icon='files' title='Copy' disabled={!source || !source.text} onClick={() => {
         copy(source.text);
       }}></ToolbarButton>
+      <ToolbarButton icon='arrow-up' title='Move line up' disabled={!source || !source.text || currentLine <= 0} onClick={moveLineUp}></ToolbarButton>
+      <ToolbarButton icon='arrow-down' title='Move line down' disabled={!source || !source.text || currentLine >= sourceText.split('\n').length - 1} onClick={moveLineDown}></ToolbarButton>
       <ToolbarButton icon='debug-continue' title='Resume (F8)' ariaLabel='Resume' disabled={!paused} onClick={() => {
         window.dispatch({ event: 'resume' });
       }}></ToolbarButton>
@@ -202,7 +274,7 @@ export const Recorder: React.FC<RecorderProps> = ({
     </Toolbar>
     <SplitView
       sidebarSize={200}
-      main={<CodeMirrorWrapper text={source.text} language={source.language} highlight={source.highlight} revealLine={source.revealLine} readOnly={true} lineNumbers={true} />}
+      main={<CodeMirrorWrapper text={sourceText} language={source.language} highlight={source.highlight} revealLine={source.revealLine} readOnly={false} lineNumbers={true} onChange={onSourceChange} onCursorChange={onCursorChange} />}
       sidebar={<TabbedPane
         rightToolbar={selectedTab === 'locator' || selectedTab === 'aria' ? [<ToolbarButton key={1} icon='files' title='Copy' onClick={() => copy((selectedTab === 'locator' ? locator : ariaSnapshot) || '')} />] : []}
         tabs={[
