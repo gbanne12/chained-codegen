@@ -36,15 +36,15 @@ type Cache = {
 const kTextScoreRange = 10;
 const kExactPenalty = kTextScoreRange / 2;
 
-const kTestIdScore = 1;        // testIdAttributeName
-const kOtherTestIdScore = 2;   // other data-test* attributes
+const kRoleWithNameScore = 1;  // Role with accessible name - highest priority
+const kLabelScore = 2;         // Label - second priority
+const kTestIdScore = 10;       // testIdAttributeName - fallback after role/label
+const kOtherTestIdScore = 12;  // other data-test* attributes
 
-const kIframeByAttributeScore = 10;
+const kIframeByAttributeScore = 20;
 
 const kBeginPenalizedScore = 50;
-const kRoleWithNameScore = 100;
 const kPlaceholderScore = 120;
-const kLabelScore = 140;
 const kAltTextScore = 160;
 const kTextScore = 180;
 const kTitleScore = 200;
@@ -58,7 +58,7 @@ const kTitleScoreExact = kTitleScore + kExactPenalty;
 const kEndPenalizedScore = 300;
 
 const kCSSIdScore = 500;
-const kRoleWithoutNameScore = 510;
+const kRoleWithoutNameScore = 15;  // Role without name - still better than testId but worse than role with name
 const kCSSInputTypeNameScore = 520;
 const kCSSTagNameScore = 530;
 const kNthScore = 10000;
