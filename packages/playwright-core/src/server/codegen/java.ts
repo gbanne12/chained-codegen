@@ -136,6 +136,12 @@ export class JavaLanguageGenerator implements LanguageGenerator {
       }
       case 'assertSnapshot':
         return `assertThat(${subject}.${this._asLocator(action.selector, inFrameLocator)}).matchesAriaSnapshot(${quote(action.snapshot)});`;
+      case 'assertClickable':
+        return `${subject}.${this._asLocator(action.selector, inFrameLocator)}.click(new Locator.ClickOptions().setTrial(true));`;
+      case 'assertDetached':
+        return `assertThat(${subject}.${this._asLocator(action.selector, inFrameLocator)}).hasCount(0);`;
+      case 'assertFocus':
+        return `assertThat(${subject}.${this._asLocator(action.selector, inFrameLocator)}).isFocused();`;
     }
   }
 

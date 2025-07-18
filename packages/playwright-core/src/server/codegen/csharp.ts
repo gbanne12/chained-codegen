@@ -149,6 +149,12 @@ export class CSharpLanguageGenerator implements LanguageGenerator {
       }
       case 'assertSnapshot':
         return `await Expect(${subject}.${this._asLocator(action.selector)}).ToMatchAriaSnapshotAsync(${quote(action.snapshot)});`;
+      case 'assertClickable':
+        return `await ${subject}.${this._asLocator(action.selector)}.ClickAsync(new() { Trial = true });`;
+      case 'assertDetached':
+        return `await Expect(${subject}.${this._asLocator(action.selector)}).ToHaveCountAsync(0);`;
+      case 'assertFocus':
+        return `await Expect(${subject}.${this._asLocator(action.selector)}).ToBeFocusedAsync();`;
     }
   }
 

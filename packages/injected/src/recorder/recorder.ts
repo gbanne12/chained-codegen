@@ -72,10 +72,12 @@ class InspectTool implements RecorderTool {
   private _hoveredModel: HighlightModel | null = null;
   private _hoveredElement: HTMLElement | null = null;
   private _assertVisibility: boolean;
+  private _mode: string;
 
-  constructor(recorder: Recorder, assertVisibility: boolean) {
+  constructor(recorder: Recorder, assertVisibility: boolean, mode: string = 'inspecting') {
     this._recorder = recorder;
     this._assertVisibility = assertVisibility;
+    this._mode = mode;
   }
 
   cursor() {
@@ -174,6 +176,30 @@ class InspectTool implements RecorderTool {
       });
       this._recorder.setMode('recording');
       this._recorder.overlay?.flashToolSucceeded('assertingVisibility');
+    } else if (this._mode === 'assertingClickable') {
+      this._recorder.recordAction({
+        name: 'assertClickable',
+        selector,
+        signals: [],
+      });
+      this._recorder.setMode('recording');
+      this._recorder.overlay?.flashToolSucceeded('assertingClickable');
+    } else if (this._mode === 'assertingDetached') {
+      this._recorder.recordAction({
+        name: 'assertDetached',
+        selector,
+        signals: [],
+      });
+      this._recorder.setMode('recording');
+      this._recorder.overlay?.flashToolSucceeded('assertingDetached');
+    } else if (this._mode === 'assertingFocus') {
+      this._recorder.recordAction({
+        name: 'assertFocus',
+        selector,
+        signals: [],
+      });
+      this._recorder.setMode('recording');
+      this._recorder.overlay?.flashToolSucceeded('assertingFocus');
     } else {
       this._recorder.elementPicked(selector, model);
     }
@@ -811,6 +837,9 @@ class Overlay {
   private _assertTextToggle: HTMLElement;
   private _assertValuesToggle: HTMLElement;
   private _assertSnapshotToggle: HTMLElement;
+  private _assertClickableToggle: HTMLElement;
+  private _assertDetachedToggle: HTMLElement;
+  private _assertFocusToggle: HTMLElement;
   private _offsetX = 0;
   private _dragState: { offsetX: number, dragStart: { x: number, y: number } } | undefined;
   private _measure: { width: number, height: number } = { width: 0, height: 0 };
@@ -862,6 +891,24 @@ class Overlay {
     this._assertSnapshotToggle.appendChild(this._recorder.document.createElement('x-div'));
     toolsListElement.appendChild(this._assertSnapshotToggle);
 
+    this._assertClickableToggle = this._recorder.document.createElement('x-pw-tool-item');
+    this._assertClickableToggle.title = 'Wait for clickable';
+    this._assertClickableToggle.classList.add('clickable');
+    this._assertClickableToggle.appendChild(this._recorder.document.createElement('x-div'));
+    toolsListElement.appendChild(this._assertClickableToggle);
+
+    this._assertDetachedToggle = this._recorder.document.createElement('x-pw-tool-item');
+    this._assertDetachedToggle.title = 'Wait until detached';
+    this._assertDetachedToggle.classList.add('detached');
+    this._assertDetachedToggle.appendChild(this._recorder.document.createElement('x-div'));
+    toolsListElement.appendChild(this._assertDetachedToggle);
+
+    this._assertFocusToggle = this._recorder.document.createElement('x-pw-tool-item');
+    this._assertFocusToggle.title = 'Assert focus';
+    this._assertFocusToggle.classList.add('focus');
+    this._assertFocusToggle.appendChild(this._recorder.document.createElement('x-div'));
+    toolsListElement.appendChild(this._assertFocusToggle);
+
     this._updateVisualPosition();
     this._refreshListeners();
   }
@@ -890,6 +937,9 @@ class Overlay {
           'assertingVisibility': 'recording-inspecting',
           'assertingValue': 'recording-inspecting',
           'assertingSnapshot': 'recording-inspecting',
+          'assertingClickable': 'recording-inspecting',
+          'assertingDetached': 'recording-inspecting',
+          'assertingFocus': 'recording-inspecting',
         };
         this._recorder.setMode(newMode[this._recorder.state.mode]);
       }),
@@ -909,6 +959,18 @@ class Overlay {
         if (!this._assertSnapshotToggle.classList.contains('disabled'))
           this._recorder.setMode(this._recorder.state.mode === 'assertingSnapshot' ? 'recording' : 'assertingSnapshot');
       }),
+      addEventListener(this._assertClickableToggle, 'click', () => {
+        if (!this._assertClickableToggle.classList.contains('disabled'))
+          this._recorder.setMode(this._recorder.state.mode === 'assertingClickable' ? 'recording' : 'assertingClickable');
+      }),
+      addEventListener(this._assertDetachedToggle, 'click', () => {
+        if (!this._assertDetachedToggle.classList.contains('disabled'))
+          this._recorder.setMode(this._recorder.state.mode === 'assertingDetached' ? 'recording' : 'assertingDetached');
+      }),
+      addEventListener(this._assertFocusToggle, 'click', () => {
+        if (!this._assertFocusToggle.classList.contains('disabled'))
+          this._recorder.setMode(this._recorder.state.mode === 'assertingFocus' ? 'recording' : 'assertingFocus');
+      }),
     ];
   }
 
@@ -923,7 +985,7 @@ class Overlay {
   }
 
   setUIState(state: UIState) {
-    this._recordToggle.classList.toggle('toggled', state.mode === 'recording' || state.mode === 'assertingText' || state.mode === 'assertingVisibility' || state.mode === 'assertingValue' || state.mode === 'assertingSnapshot' || state.mode === 'recording-inspecting');
+    this._recordToggle.classList.toggle('toggled', state.mode === 'recording' || state.mode === 'assertingText' || state.mode === 'assertingVisibility' || state.mode === 'assertingValue' || state.mode === 'assertingSnapshot' || state.mode === 'assertingClickable' || state.mode === 'assertingDetached' || state.mode === 'assertingFocus' || state.mode === 'recording-inspecting');
     this._pickLocatorToggle.classList.toggle('toggled', state.mode === 'inspecting' || state.mode === 'recording-inspecting');
     this._assertVisibilityToggle.classList.toggle('toggled', state.mode === 'assertingVisibility');
     this._assertVisibilityToggle.classList.toggle('disabled', state.mode === 'none' || state.mode === 'standby' || state.mode === 'inspecting');
@@ -933,6 +995,12 @@ class Overlay {
     this._assertValuesToggle.classList.toggle('disabled', state.mode === 'none' || state.mode === 'standby' || state.mode === 'inspecting');
     this._assertSnapshotToggle.classList.toggle('toggled', state.mode === 'assertingSnapshot');
     this._assertSnapshotToggle.classList.toggle('disabled', state.mode === 'none' || state.mode === 'standby' || state.mode === 'inspecting');
+    this._assertClickableToggle.classList.toggle('toggled', state.mode === 'assertingClickable');
+    this._assertClickableToggle.classList.toggle('disabled', state.mode === 'none' || state.mode === 'standby' || state.mode === 'inspecting');
+    this._assertDetachedToggle.classList.toggle('toggled', state.mode === 'assertingDetached');
+    this._assertDetachedToggle.classList.toggle('disabled', state.mode === 'none' || state.mode === 'standby' || state.mode === 'inspecting');
+    this._assertFocusToggle.classList.toggle('toggled', state.mode === 'assertingFocus');
+    this._assertFocusToggle.classList.toggle('disabled', state.mode === 'none' || state.mode === 'standby' || state.mode === 'inspecting');
     if (this._offsetX !== state.overlay.offsetX) {
       this._offsetX = state.overlay.offsetX;
       this._updateVisualPosition();
@@ -943,12 +1011,18 @@ class Overlay {
       this._showOverlay();
   }
 
-  flashToolSucceeded(tool: 'assertingVisibility' | 'assertingSnapshot' | 'assertingValue') {
+  flashToolSucceeded(tool: 'assertingVisibility' | 'assertingSnapshot' | 'assertingValue' | 'assertingClickable' | 'assertingDetached' | 'assertingFocus') {
     let element: Element;
     if (tool === 'assertingVisibility')
       element = this._assertVisibilityToggle;
     else if (tool === 'assertingSnapshot')
       element = this._assertSnapshotToggle;
+    else if (tool === 'assertingClickable')
+      element = this._assertClickableToggle;
+    else if (tool === 'assertingDetached')
+      element = this._assertDetachedToggle;
+    else if (tool === 'assertingFocus')
+      element = this._assertFocusToggle;
     else
       element = this._assertValuesToggle;
     element.classList.add('succeeded');
@@ -1043,6 +1117,9 @@ export class Recorder {
       'assertingVisibility': new InspectTool(this, true),
       'assertingValue': new TextAssertionTool(this, 'value'),
       'assertingSnapshot': new TextAssertionTool(this, 'snapshot'),
+      'assertingClickable': new InspectTool(this, false, 'assertingClickable'),
+      'assertingDetached': new InspectTool(this, false, 'assertingDetached'),
+      'assertingFocus': new InspectTool(this, false, 'assertingFocus'),
     };
     this._currentTool = this._tools.none;
     if (injectedScript.window.top === injectedScript.window) {

@@ -122,6 +122,12 @@ export class JavaScriptLanguageGenerator implements LanguageGenerator {
         const commentIfNeeded = this._isTest ? '' : '// ';
         return `${commentIfNeeded}await expect(${subject}.${this._asLocator(action.selector)}).toMatchAriaSnapshot(${quoteMultiline(action.snapshot, `${commentIfNeeded}  `)});`;
       }
+      case 'assertClickable':
+        return `${this._isTest ? '' : '// '}await ${subject}.${this._asLocator(action.selector)}.click({ trial: true });`;
+      case 'assertDetached':
+        return `${this._isTest ? '' : '// '}await expect(${subject}.${this._asLocator(action.selector)}).toHaveCount(0);`;
+      case 'assertFocus':
+        return `${this._isTest ? '' : '// '}await expect(${subject}.${this._asLocator(action.selector)}).toBeFocused();`;
     }
   }
 

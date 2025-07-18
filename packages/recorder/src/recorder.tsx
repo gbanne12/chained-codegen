@@ -134,7 +134,7 @@ export const Recorder: React.FC<RecorderProps> = ({
 
   return <div className='recorder'>
     <Toolbar>
-      <ToolbarButton icon='circle-large-filled' title='Record' toggled={mode === 'recording' || mode === 'recording-inspecting' || mode === 'assertingText' || mode === 'assertingVisibility'} onClick={() => {
+      <ToolbarButton icon='circle-large-filled' title='Record' toggled={mode === 'recording' || mode === 'recording-inspecting' || mode === 'assertingText' || mode === 'assertingVisibility' || mode === 'assertingValue' || mode === 'assertingSnapshot' || mode === 'assertingClickable' || mode === 'assertingDetached' || mode === 'assertingFocus'} onClick={() => {
         window.dispatch({ event: 'setMode', params: { mode: mode === 'none' || mode === 'standby' || mode === 'inspecting' ? 'recording' : 'standby' } });
       }}>Record</ToolbarButton>
       <ToolbarSeparator />
@@ -149,6 +149,9 @@ export const Recorder: React.FC<RecorderProps> = ({
           'assertingVisibility': 'recording-inspecting',
           'assertingValue': 'recording-inspecting',
           'assertingSnapshot': 'recording-inspecting',
+          'assertingClickable': 'recording-inspecting',
+          'assertingDetached': 'recording-inspecting',
+          'assertingFocus': 'recording-inspecting',
         }[mode];
         window.dispatch({ event: 'setMode', params: { mode: newMode } }).catch(() => { });
       }}></ToolbarButton>
@@ -163,6 +166,15 @@ export const Recorder: React.FC<RecorderProps> = ({
       }}></ToolbarButton>
       <ToolbarButton icon='gist' title='Assert snapshot' toggled={mode === 'assertingSnapshot'} disabled={mode === 'none' || mode === 'standby' || mode === 'inspecting'} onClick={() => {
         window.dispatch({ event: 'setMode', params: { mode: mode === 'assertingSnapshot' ? 'recording' : 'assertingSnapshot' } });
+      }}></ToolbarButton>
+      <ToolbarButton icon='debug-step-over' title='Wait for clickable' toggled={mode === 'assertingClickable'} disabled={mode === 'none' || mode === 'standby' || mode === 'inspecting'} onClick={() => {
+        window.dispatch({ event: 'setMode', params: { mode: mode === 'assertingClickable' ? 'recording' : 'assertingClickable' } });
+      }}></ToolbarButton>
+      <ToolbarButton icon='trash' title='Wait until detached' toggled={mode === 'assertingDetached'} disabled={mode === 'none' || mode === 'standby' || mode === 'inspecting'} onClick={() => {
+        window.dispatch({ event: 'setMode', params: { mode: mode === 'assertingDetached' ? 'recording' : 'assertingDetached' } });
+      }}></ToolbarButton>
+      <ToolbarButton icon='target' title='Assert focus' toggled={mode === 'assertingFocus'} disabled={mode === 'none' || mode === 'standby' || mode === 'inspecting'} onClick={() => {
+        window.dispatch({ event: 'setMode', params: { mode: mode === 'assertingFocus' ? 'recording' : 'assertingFocus' } });
       }}></ToolbarButton>
       <ToolbarSeparator />
       <ToolbarButton icon='files' title='Copy' disabled={!source || !source.text} onClick={() => {

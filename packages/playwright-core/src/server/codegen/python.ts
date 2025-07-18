@@ -129,6 +129,12 @@ export class PythonLanguageGenerator implements LanguageGenerator {
       }
       case 'assertSnapshot':
         return `expect(${subject}.${this._asLocator(action.selector)}).to_match_aria_snapshot(${quote(action.snapshot)})`;
+      case 'assertClickable':
+        return `${subject}.${this._asLocator(action.selector)}.click(trial=True)`;
+      case 'assertDetached':
+        return `expect(${subject}.${this._asLocator(action.selector)}).to_have_count(0)`;
+      case 'assertFocus':
+        return `expect(${subject}.${this._asLocator(action.selector)}).to_be_focused()`;
     }
   }
 

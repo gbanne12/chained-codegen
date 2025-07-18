@@ -376,7 +376,7 @@ export class Recorder implements InstrumentationListener, IRecorder {
   }
 
   private _isRecording() {
-    return ['recording', 'assertingText', 'assertingVisibility', 'assertingValue', 'assertingSnapshot'].includes(this._mode);
+    return ['recording', 'assertingText', 'assertingVisibility', 'assertingValue', 'assertingSnapshot', 'assertingClickable', 'assertingDetached', 'assertingFocus'].includes(this._mode);
   }
 
   private _readSource(fileName: string): string {

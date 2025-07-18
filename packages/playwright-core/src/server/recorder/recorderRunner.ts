@@ -127,6 +127,35 @@ export async function performAction(pageAliases: Map<Page, string>, actionInCont
     return;
   }
 
+  if (action.name === 'assertClickable') {
+    await mainFrame.click(callMetadata, selector, {
+      trial: true,
+      timeout: kActionTimeout,
+    });
+    return;
+  }
+
+  if (action.name === 'assertDetached') {
+    await mainFrame.expect(callMetadata, selector, {
+      selector,
+      expression: 'to.have.count',
+      expectedNumber: 0,
+      isNot: false,
+      timeout: kActionTimeout,
+    });
+    return;
+  }
+
+  if (action.name === 'assertFocus') {
+    await mainFrame.expect(callMetadata, selector, {
+      selector,
+      expression: 'to.be.focused',
+      isNot: false,
+      timeout: kActionTimeout,
+    });
+    return;
+  }
+
   throw new Error('Internal error: unexpected action ' + (action as any).name);
 }
 
