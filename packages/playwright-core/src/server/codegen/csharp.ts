@@ -155,6 +155,8 @@ export class CSharpLanguageGenerator implements LanguageGenerator {
         return `await Expect(${subject}.${this._asLocator(action.selector)}).ToHaveCountAsync(0);`;
       case 'assertFocus':
         return `await Expect(${subject}.${this._asLocator(action.selector)}).ToBeFocusedAsync();`;
+      case 'assertAttribute':
+        return `await Expect(${subject}.${this._asLocator(action.selector)}).ToHaveAttributeAsync(${quote(action.attribute)}, ${quote(action.value)});`;
     }
   }
 

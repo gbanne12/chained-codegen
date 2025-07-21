@@ -826,6 +826,152 @@ class TextAssertionTool implements RecorderTool {
   }
 }
 
+class AttributeAssertionTool implements RecorderTool {
+  private _recorder: Recorder;
+  private _hoverHighlight: HighlightModelWithSelector | null = null;
+  private _action: actions.AssertAttributeAction | null = null;
+  private _dialog: Dialog;
+
+  constructor(recorder: Recorder) {
+    this._recorder = recorder;
+    this._dialog = new Dialog(recorder);
+  }
+
+  cursor() {
+    return 'pointer';
+  }
+
+  cleanup() {
+    this._dialog.close();
+    this._hoverHighlight = null;
+  }
+
+  onClick(event: MouseEvent) {
+    consumeEvent(event);
+    if (!this._dialog.isShowing())
+      this._showDialog();
+  }
+
+  onMouseDown(event: MouseEvent) {
+    event.preventDefault();
+  }
+
+  onPointerUp(event: PointerEvent) {
+    // Nothing to do on pointer up for attribute assertion
+  }
+
+  onMouseMove(event: MouseEvent) {
+    if (this._dialog.isShowing())
+      return;
+    const target = this._recorder.deepEventTarget(event);
+    if (this._hoverHighlight?.elements[0] === target)
+      return;
+    const generated = this._recorder.injectedScript.generateSelector(target, { testIdAttributeName: this._recorder.state.testIdAttributeName });
+    this._hoverHighlight = { selector: generated.selector, elements: generated.elements, color: HighlightColors.assert };
+    this._recorder.updateHighlight(this._hoverHighlight, true);
+  }
+
+  onKeyDown(event: KeyboardEvent) {
+    if (event.key === 'Escape')
+      this._recorder.setMode('recording');
+    consumeEvent(event);
+  }
+
+  onScroll(event: Event) {
+    this._recorder.updateHighlight(this._hoverHighlight, false);
+  }
+
+  private _generateAction(): actions.AssertAttributeAction | null {
+    const target = this._hoverHighlight?.elements[0];
+    if (!target)
+      return null;
+    const { selector } = this._recorder.injectedScript.generateSelector(target, { testIdAttributeName: this._recorder.state.testIdAttributeName });
+    // Get all attributes from the element
+    const attributes: { name: string, value: string }[] = [];
+    for (let i = 0; i < target.attributes.length; i++) {
+      const attr = target.attributes[i];
+      attributes.push({ name: attr.name, value: attr.value });
+    }
+    if (attributes.length === 0)
+      return null;
+
+    return {
+      name: 'assertAttribute',
+      selector,
+      signals: [],
+      attribute: attributes[0].name, // Will be updated by user selection
+      value: attributes[0].value,
+    };
+  }
+
+  private _showDialog() {
+    if (!this._hoverHighlight?.elements[0])
+      return;
+
+    const target = this._hoverHighlight.elements[0];
+
+    // Get all attributes from the element
+    const attributes: { name: string, value: string }[] = [];
+    for (let i = 0; i < target.attributes.length; i++) {
+      const attr = target.attributes[i];
+      attributes.push({ name: attr.name, value: attr.value });
+    }
+
+    if (attributes.length === 0) {
+      this._recorder.setMode('recording');
+      return;
+    }
+
+    this._action = this._generateAction();
+    if (!this._action)
+      return;
+
+    this._showAttributeDialog(this._action, attributes);
+  }
+
+  private _showAttributeDialog(action: actions.AssertAttributeAction, attributes: { name: string, value: string }[]) {
+    const selectElement = this._recorder.document.createElement('select');
+    selectElement.classList.add('attribute-selector');
+
+    for (const attr of attributes) {
+      const option = this._recorder.document.createElement('option');
+      option.value = attr.name;
+      option.textContent = `${attr.name}="${attr.value}"`;
+      selectElement.appendChild(option);
+    }
+
+    const updateAction = () => {
+      const selectedAttr = attributes.find(attr => attr.name === selectElement.value);
+      if (selectedAttr) {
+        action.attribute = selectedAttr.name;
+        action.value = selectedAttr.value;
+      }
+    };
+
+    selectElement.addEventListener('change', updateAction);
+    updateAction(); // Set initial values
+
+    const label = 'Select attribute to assert';
+    const dialogElement = this._dialog.show({
+      label,
+      body: selectElement,
+      onCommit: () => this._commit(),
+    });
+    const position = this._recorder.highlight.tooltipPosition(this._recorder.highlight.firstBox()!, dialogElement);
+    this._dialog.moveTo(position.anchorTop, position.anchorLeft);
+    selectElement.focus();
+  }
+
+  private _commit() {
+    if (!this._action || !this._dialog.isShowing())
+      return;
+    this._dialog.close();
+    this._recorder.recordAction(this._action);
+    this._recorder.setMode('recording');
+    this._recorder.overlay?.flashToolSucceeded('assertingAttribute');
+  }
+}
+
 class Overlay {
   private _recorder: Recorder;
   private _listeners: (() => void)[] = [];
@@ -840,6 +986,7 @@ class Overlay {
   private _assertClickableToggle: HTMLElement;
   private _assertDetachedToggle: HTMLElement;
   private _assertFocusToggle: HTMLElement;
+  private _assertAttributeToggle: HTMLElement;
   private _offsetX = 0;
   private _dragState: { offsetX: number, dragStart: { x: number, y: number } } | undefined;
   private _measure: { width: number, height: number } = { width: 0, height: 0 };
@@ -891,23 +1038,36 @@ class Overlay {
     this._assertSnapshotToggle.appendChild(this._recorder.document.createElement('x-div'));
     toolsListElement.appendChild(this._assertSnapshotToggle);
 
+    // Note: The following assertion buttons are hidden from the overlay but still available in the main inspector:
+    // - Assert clickable (this._assertClickableToggle)
+    // - Assert detached (this._assertDetachedToggle) 
+    // - Assert focus (this._assertFocusToggle)
+    // - Assert attribute (this._assertAttributeToggle)
+
+    // Create the toggles but don't add them to the overlay
     this._assertClickableToggle = this._recorder.document.createElement('x-pw-tool-item');
     this._assertClickableToggle.title = 'Wait for clickable';
     this._assertClickableToggle.classList.add('clickable');
     this._assertClickableToggle.appendChild(this._recorder.document.createElement('x-div'));
-    toolsListElement.appendChild(this._assertClickableToggle);
+    // toolsListElement.appendChild(this._assertClickableToggle); // Hidden from overlay
 
     this._assertDetachedToggle = this._recorder.document.createElement('x-pw-tool-item');
     this._assertDetachedToggle.title = 'Wait until detached';
     this._assertDetachedToggle.classList.add('detached');
     this._assertDetachedToggle.appendChild(this._recorder.document.createElement('x-div'));
-    toolsListElement.appendChild(this._assertDetachedToggle);
+    // toolsListElement.appendChild(this._assertDetachedToggle); // Hidden from overlay
 
     this._assertFocusToggle = this._recorder.document.createElement('x-pw-tool-item');
     this._assertFocusToggle.title = 'Assert focus';
     this._assertFocusToggle.classList.add('focus');
     this._assertFocusToggle.appendChild(this._recorder.document.createElement('x-div'));
-    toolsListElement.appendChild(this._assertFocusToggle);
+    // toolsListElement.appendChild(this._assertFocusToggle); // Hidden from overlay
+
+    this._assertAttributeToggle = this._recorder.document.createElement('x-pw-tool-item');
+    this._assertAttributeToggle.title = 'Assert attribute';
+    this._assertAttributeToggle.classList.add('attribute');
+    this._assertAttributeToggle.appendChild(this._recorder.document.createElement('x-div'));
+    // toolsListElement.appendChild(this._assertAttributeToggle); // Hidden from overlay
 
     this._updateVisualPosition();
     this._refreshListeners();
@@ -940,6 +1100,7 @@ class Overlay {
           'assertingClickable': 'recording-inspecting',
           'assertingDetached': 'recording-inspecting',
           'assertingFocus': 'recording-inspecting',
+          'assertingAttribute': 'recording-inspecting',
         };
         this._recorder.setMode(newMode[this._recorder.state.mode]);
       }),
@@ -971,6 +1132,10 @@ class Overlay {
         if (!this._assertFocusToggle.classList.contains('disabled'))
           this._recorder.setMode(this._recorder.state.mode === 'assertingFocus' ? 'recording' : 'assertingFocus');
       }),
+      addEventListener(this._assertAttributeToggle, 'click', () => {
+        if (!this._assertAttributeToggle.classList.contains('disabled'))
+          this._recorder.setMode(this._recorder.state.mode === 'assertingAttribute' ? 'recording' : 'assertingAttribute');
+      }),
     ];
   }
 
@@ -985,7 +1150,7 @@ class Overlay {
   }
 
   setUIState(state: UIState) {
-    this._recordToggle.classList.toggle('toggled', state.mode === 'recording' || state.mode === 'assertingText' || state.mode === 'assertingVisibility' || state.mode === 'assertingValue' || state.mode === 'assertingSnapshot' || state.mode === 'assertingClickable' || state.mode === 'assertingDetached' || state.mode === 'assertingFocus' || state.mode === 'recording-inspecting');
+    this._recordToggle.classList.toggle('toggled', state.mode === 'recording' || state.mode === 'assertingText' || state.mode === 'assertingVisibility' || state.mode === 'assertingValue' || state.mode === 'assertingSnapshot' || state.mode === 'assertingClickable' || state.mode === 'assertingDetached' || state.mode === 'assertingFocus' || state.mode === 'assertingAttribute' || state.mode === 'recording-inspecting');
     this._pickLocatorToggle.classList.toggle('toggled', state.mode === 'inspecting' || state.mode === 'recording-inspecting');
     this._assertVisibilityToggle.classList.toggle('toggled', state.mode === 'assertingVisibility');
     this._assertVisibilityToggle.classList.toggle('disabled', state.mode === 'none' || state.mode === 'standby' || state.mode === 'inspecting');
@@ -1001,6 +1166,8 @@ class Overlay {
     this._assertDetachedToggle.classList.toggle('disabled', state.mode === 'none' || state.mode === 'standby' || state.mode === 'inspecting');
     this._assertFocusToggle.classList.toggle('toggled', state.mode === 'assertingFocus');
     this._assertFocusToggle.classList.toggle('disabled', state.mode === 'none' || state.mode === 'standby' || state.mode === 'inspecting');
+    this._assertAttributeToggle.classList.toggle('toggled', state.mode === 'assertingAttribute');
+    this._assertAttributeToggle.classList.toggle('disabled', state.mode === 'none' || state.mode === 'standby' || state.mode === 'inspecting');
     if (this._offsetX !== state.overlay.offsetX) {
       this._offsetX = state.overlay.offsetX;
       this._updateVisualPosition();
@@ -1011,7 +1178,7 @@ class Overlay {
       this._showOverlay();
   }
 
-  flashToolSucceeded(tool: 'assertingVisibility' | 'assertingSnapshot' | 'assertingValue' | 'assertingClickable' | 'assertingDetached' | 'assertingFocus') {
+  flashToolSucceeded(tool: 'assertingVisibility' | 'assertingSnapshot' | 'assertingValue' | 'assertingClickable' | 'assertingDetached' | 'assertingFocus' | 'assertingAttribute') {
     let element: Element;
     if (tool === 'assertingVisibility')
       element = this._assertVisibilityToggle;
@@ -1023,6 +1190,8 @@ class Overlay {
       element = this._assertDetachedToggle;
     else if (tool === 'assertingFocus')
       element = this._assertFocusToggle;
+    else if (tool === 'assertingAttribute')
+      element = this._assertAttributeToggle;
     else
       element = this._assertValuesToggle;
     element.classList.add('succeeded');
@@ -1120,6 +1289,7 @@ export class Recorder {
       'assertingClickable': new InspectTool(this, false, 'assertingClickable'),
       'assertingDetached': new InspectTool(this, false, 'assertingDetached'),
       'assertingFocus': new InspectTool(this, false, 'assertingFocus'),
+      'assertingAttribute': new AttributeAssertionTool(this),
     };
     this._currentTool = this._tools.none;
     if (injectedScript.window.top === injectedScript.window) {
@@ -1408,7 +1578,7 @@ export class Recorder {
   }
 
   async performAction(action: actions.PerformOnRecordAction) {
-    await this._delegate.performAction?.(action).catch(() => {});
+    await this._delegate.performAction?.(action).catch(() => { });
   }
 
   recordAction(action: actions.Action) {
@@ -1526,7 +1696,7 @@ function buttonForEvent(event: MouseEvent): 'left' | 'middle' | 'right' {
   return 'left';
 }
 
-function positionForEvent(event: MouseEvent): Point |undefined {
+function positionForEvent(event: MouseEvent): Point | undefined {
   const targetElement = (event.target as HTMLElement);
   if (targetElement.nodeName !== 'CANVAS')
     return;

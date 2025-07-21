@@ -29,7 +29,7 @@ x-pw-tooltip {
   backdrop-filter: blur(5px);
   background-color: white;
   border-radius: 6px;
-  box-shadow: 0 0.5rem 1.2rem rgba(0,0,0,.3);
+  box-shadow: 0 0.5rem 1.2rem rgba(0, 0, 0, .3);
   display: none;
   font-size: 12.8px;
   font-weight: normal;
@@ -68,7 +68,7 @@ x-pw-dialog {
   background-color: white;
   pointer-events: auto;
   border-radius: 6px;
-  box-shadow: 0 0.5rem 1.2rem rgba(0,0,0,.3);
+  box-shadow: 0 0.5rem 1.2rem rgba(0, 0, 0, .3);
   display: flex;
   flex-direction: column;
   position: absolute;
@@ -126,7 +126,7 @@ x-pw-tool-gripper:active {
   cursor: grabbing;
 }
 
-x-pw-tool-gripper > x-div {
+x-pw-tool-gripper>x-div {
   width: 16px;
   height: 16px;
   margin: 6px 4px;
@@ -134,7 +134,7 @@ x-pw-tool-gripper > x-div {
   background-color: #555555;
 }
 
-x-pw-tools-list > label {
+x-pw-tools-list>label {
   display: flex;
   align-items: center;
   margin: 0 10px;
@@ -170,14 +170,14 @@ x-pw-tool-item.toggled:not(.disabled):hover {
   background-color: #8acae4c4;
 }
 
-x-pw-tool-item > x-div {
+x-pw-tool-item>x-div {
   width: 16px;
   height: 16px;
   margin: 6px;
   background-color: #3a3a3a;
 }
 
-x-pw-tool-item.disabled > x-div {
+x-pw-tool-item.disabled>x-div {
   background-color: rgba(97, 97, 97, 0.5);
   cursor: default;
 }
@@ -190,57 +190,58 @@ x-pw-tool-item.record.toggled:not(.disabled):hover {
   background-color: hsl(0, 0%, 86%);
 }
 
-x-pw-tool-item.record.toggled > x-div {
+x-pw-tool-item.record.toggled>x-div {
   background-color: #a1260d;
 }
 
-x-pw-tool-item.record.disabled.toggled > x-div {
+x-pw-tool-item.record.disabled.toggled>x-div {
   opacity: 0.8;
 }
 
-x-pw-tool-item.accept > x-div {
+x-pw-tool-item.accept>x-div {
   background-color: #388a34;
 }
 
-x-pw-tool-item.record > x-div {
+x-pw-tool-item.record>x-div {
   /* codicon: circle-large-filled */
   clip-path: url(#icon-circle-large-filled);
 }
 
-x-pw-tool-item.pick-locator > x-div {
+x-pw-tool-item.pick-locator>x-div {
   /* codicon: inspect */
   clip-path: url(#icon-inspect);
 }
 
-x-pw-tool-item.text > x-div {
+x-pw-tool-item.text>x-div {
   /* codicon: whole-word */
   clip-path: url(#icon-whole-word);
 }
 
-x-pw-tool-item.visibility > x-div {
+x-pw-tool-item.visibility>x-div {
   /* codicon: eye */
   clip-path: url(#icon-eye);
 }
 
-x-pw-tool-item.value > x-div {
+x-pw-tool-item.value>x-div {
   /* codicon: symbol-constant */
   clip-path: url(#icon-symbol-constant);
 }
 
-x-pw-tool-item.snapshot > x-div {
+x-pw-tool-item.snapshot>x-div {
   /* codicon: eye */
   clip-path: url(#icon-gist);
 }
 
-x-pw-tool-item.accept > x-div {
+
+x-pw-tool-item.accept>x-div {
   clip-path: url(#icon-check);
 }
 
-x-pw-tool-item.cancel > x-div {
+x-pw-tool-item.cancel>x-div {
   clip-path: url(#icon-close);
 }
 
-x-pw-tool-item.succeeded > x-div {
+x-pw-tool-item.succeeded>x-div {
   /* codicon: pass */
   clip-path: url(#icon-pass);
   background-color: #388a34 !important;
@@ -267,12 +268,12 @@ x-pw-overlay x-pw-tool-item {
 }
 
 textarea.text-editor {
-  font-family: system-ui,Ubuntu,Droid Sans,sans-serif;
+  font-family: system-ui, Ubuntu, Droid Sans, sans-serif;
   flex: auto;
   border: none;
   margin: 6px 10px;
   color: #333;
-  outline: 1px solid transparent!important;
+  outline: 1px solid transparent !important;
   resize: none;
   padding: 0;
   font-size: 13px;

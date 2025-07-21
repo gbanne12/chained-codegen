@@ -142,6 +142,8 @@ export class JavaLanguageGenerator implements LanguageGenerator {
         return `assertThat(${subject}.${this._asLocator(action.selector, inFrameLocator)}).hasCount(0);`;
       case 'assertFocus':
         return `assertThat(${subject}.${this._asLocator(action.selector, inFrameLocator)}).isFocused();`;
+      case 'assertAttribute':
+        return `assertThat(${subject}.${this._asLocator(action.selector, inFrameLocator)}).hasAttribute(${quote(action.attribute)}, ${quote(action.value)});`;
     }
   }
 

@@ -34,7 +34,8 @@ export type ActionName =
   'assertSnapshot' |
   'assertClickable' |
   'assertDetached' |
-  'assertFocus';
+  'assertFocus' |
+  'assertAttribute';
 
 export type ActionBase = {
   name: ActionName,
@@ -134,8 +135,14 @@ export type AssertFocusAction = ActionWithSelector & {
   name: 'assertFocus',
 };
 
-export type Action = ClickAction | CheckAction | ClosesPageAction | OpenPageAction | UncheckAction | FillAction | NavigateAction | PressAction | SelectAction | SetInputFilesAction | AssertTextAction | AssertValueAction | AssertCheckedAction | AssertVisibleAction | AssertSnapshotAction | AssertClickableAction | AssertDetachedAction | AssertFocusAction;
-export type AssertAction = AssertCheckedAction | AssertValueAction | AssertTextAction | AssertVisibleAction | AssertSnapshotAction | AssertClickableAction | AssertDetachedAction | AssertFocusAction;
+export type AssertAttributeAction = ActionWithSelector & {
+  name: 'assertAttribute',
+  attribute: string,
+  value: string,
+};
+
+export type Action = ClickAction | CheckAction | ClosesPageAction | OpenPageAction | UncheckAction | FillAction | NavigateAction | PressAction | SelectAction | SetInputFilesAction | AssertTextAction | AssertValueAction | AssertCheckedAction | AssertVisibleAction | AssertSnapshotAction | AssertClickableAction | AssertDetachedAction | AssertFocusAction | AssertAttributeAction;
+export type AssertAction = AssertCheckedAction | AssertValueAction | AssertTextAction | AssertVisibleAction | AssertSnapshotAction | AssertClickableAction | AssertDetachedAction | AssertFocusAction | AssertAttributeAction;
 export type PerformOnRecordAction = ClickAction | CheckAction | UncheckAction | PressAction | SelectAction;
 
 // Signals.

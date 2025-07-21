@@ -135,6 +135,8 @@ export class PythonLanguageGenerator implements LanguageGenerator {
         return `expect(${subject}.${this._asLocator(action.selector)}).to_have_count(0)`;
       case 'assertFocus':
         return `expect(${subject}.${this._asLocator(action.selector)}).to_be_focused()`;
+      case 'assertAttribute':
+        return `expect(${subject}.${this._asLocator(action.selector)}).to_have_attribute(${quote(action.attribute)}, ${quote(action.value)})`;
     }
   }
 

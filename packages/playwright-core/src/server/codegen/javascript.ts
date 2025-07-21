@@ -128,6 +128,8 @@ export class JavaScriptLanguageGenerator implements LanguageGenerator {
         return `${this._isTest ? '' : '// '}await expect(${subject}.${this._asLocator(action.selector)}).toHaveCount(0);`;
       case 'assertFocus':
         return `${this._isTest ? '' : '// '}await expect(${subject}.${this._asLocator(action.selector)}).toBeFocused();`;
+      case 'assertAttribute':
+        return `${this._isTest ? '' : '// '}await expect(${subject}.${this._asLocator(action.selector)}).toHaveAttribute(${quote(action.attribute)}, ${quote(action.value)});`;
     }
   }
 

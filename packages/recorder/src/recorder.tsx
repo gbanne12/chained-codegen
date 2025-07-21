@@ -137,7 +137,7 @@ export const Recorder: React.FC<RecorderProps> = ({
   // Sync source text state
   React.useEffect(() => {
     setSourceText(source.text);
-  }, [source.text]);  const moveLineUp = React.useCallback(() => {
+  }, [source.text]); const moveLineUp = React.useCallback(() => {
     if (currentLine <= 0)
       return;
     const lines = sourceText.split('\n');
@@ -204,7 +204,7 @@ export const Recorder: React.FC<RecorderProps> = ({
 
   return <div className='recorder'>
     <Toolbar>
-      <ToolbarButton icon='circle-large-filled' title='Record' toggled={mode === 'recording' || mode === 'recording-inspecting' || mode === 'assertingText' || mode === 'assertingVisibility' || mode === 'assertingValue' || mode === 'assertingSnapshot' || mode === 'assertingClickable' || mode === 'assertingDetached' || mode === 'assertingFocus'} onClick={() => {
+      <ToolbarButton icon='circle-large-filled' title='Record' toggled={mode === 'recording' || mode === 'recording-inspecting' || mode === 'assertingText' || mode === 'assertingVisibility' || mode === 'assertingValue' || mode === 'assertingSnapshot' || mode === 'assertingClickable' || mode === 'assertingDetached' || mode === 'assertingFocus' || mode === 'assertingAttribute'} onClick={() => {
         window.dispatch({ event: 'setMode', params: { mode: mode === 'none' || mode === 'standby' || mode === 'inspecting' ? 'recording' : 'standby' } });
       }}>Record</ToolbarButton>
       <ToolbarSeparator />
@@ -222,6 +222,7 @@ export const Recorder: React.FC<RecorderProps> = ({
           'assertingClickable': 'recording-inspecting',
           'assertingDetached': 'recording-inspecting',
           'assertingFocus': 'recording-inspecting',
+          'assertingAttribute': 'recording-inspecting',
         }[mode];
         window.dispatch({ event: 'setMode', params: { mode: newMode } }).catch(() => { });
       }}></ToolbarButton>
@@ -237,16 +238,23 @@ export const Recorder: React.FC<RecorderProps> = ({
       <ToolbarButton icon='gist' title='Assert snapshot' toggled={mode === 'assertingSnapshot'} disabled={mode === 'none' || mode === 'standby' || mode === 'inspecting'} onClick={() => {
         window.dispatch({ event: 'setMode', params: { mode: mode === 'assertingSnapshot' ? 'recording' : 'assertingSnapshot' } });
       }}></ToolbarButton>
-      <ToolbarButton icon='debug-step-over' title='Wait for clickable' toggled={mode === 'assertingClickable'} disabled={mode === 'none' || mode === 'standby' || mode === 'inspecting'} onClick={() => {
-        window.dispatch({ event: 'setMode', params: { mode: mode === 'assertingClickable' ? 'recording' : 'assertingClickable' } });
+      <ToolbarButton icon='tag' title='Assert attribute' toggled={mode === 'assertingAttribute'} disabled={mode === 'none' || mode === 'standby' || mode === 'inspecting'} onClick={() => {
+        window.dispatch({ event: 'setMode', params: { mode: mode === 'assertingAttribute' ? 'recording' : 'assertingAttribute' } });
       }}></ToolbarButton>
-      <ToolbarButton icon='trash' title='Wait until detached' toggled={mode === 'assertingDetached'} disabled={mode === 'none' || mode === 'standby' || mode === 'inspecting'} onClick={() => {
-        window.dispatch({ event: 'setMode', params: { mode: mode === 'assertingDetached' ? 'recording' : 'assertingDetached' } });
-      }}></ToolbarButton>
-      <ToolbarButton icon='target' title='Assert focus' toggled={mode === 'assertingFocus'} disabled={mode === 'none' || mode === 'standby' || mode === 'inspecting'} onClick={() => {
+      <ToolbarButton icon='target' title='Assert focused' toggled={mode === 'assertingFocus'} disabled={mode === 'none' || mode === 'standby' || mode === 'inspecting'} onClick={() => {
         window.dispatch({ event: 'setMode', params: { mode: mode === 'assertingFocus' ? 'recording' : 'assertingFocus' } });
       }}></ToolbarButton>
+
       <ToolbarSeparator />
+      <ToolbarButton icon='search' title='Poll until clickable' toggled={mode === 'assertingClickable'} disabled={mode === 'none' || mode === 'standby' || mode === 'inspecting'} onClick={() => {
+        window.dispatch({ event: 'setMode', params: { mode: mode === 'assertingClickable' ? 'recording' : 'assertingClickable' } });
+      }}></ToolbarButton>
+      <ToolbarButton icon='search-stop' title='Poll until removed' toggled={mode === 'assertingDetached'} disabled={mode === 'none' || mode === 'standby' || mode === 'inspecting'} onClick={() => {
+        window.dispatch({ event: 'setMode', params: { mode: mode === 'assertingDetached' ? 'recording' : 'assertingDetached' } });
+      }}></ToolbarButton>
+      <ToolbarSeparator>
+
+      </ToolbarSeparator>
       <ToolbarButton icon='files' title='Copy' disabled={!source || !source.text} onClick={() => {
         copy(source.text);
       }}></ToolbarButton>

@@ -31,7 +31,8 @@ export type Mode =
   | 'assertingSnapshot'
   | 'assertingClickable'
   | 'assertingDetached'
-  | 'assertingFocus';
+  | 'assertingFocus'
+  | 'assertingAttribute';
 
 export type ElementInfo = {
   selector: string;
