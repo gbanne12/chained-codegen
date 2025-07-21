@@ -203,6 +203,19 @@ export class ContextRecorder extends EventEmitter {
     }
   }
 
+  cycleLocator(direction: string): void {
+    // Send cycling command to the injected script
+    for (const page of this._context.pages()) {
+      page.mainFrame().evaluateExpression(`
+        (() => {
+          if (window.playwrightCycleLocator) {
+            window.playwrightCycleLocator('${direction}');
+          }
+        })()
+      `).catch(() => {});
+    }
+  }
+
   runTask(task: string): void {
     // TODO: implement
   }

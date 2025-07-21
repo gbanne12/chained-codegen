@@ -69,7 +69,7 @@ class NoneTool implements RecorderTool {
 
 class InspectTool implements RecorderTool {
   private _recorder: Recorder;
-  private _hoveredModel: HighlightModel | null = null;
+  public _hoveredModel: HighlightModel | null = null;
   private _hoveredElement: HTMLElement | null = null;
   private _assertVisibility: boolean;
   private _mode: string;
@@ -124,11 +124,18 @@ class InspectTool implements RecorderTool {
 
     let model: HighlightModel | null = null;
     if (this._hoveredElement) {
-      const generated = this._recorder.injectedScript.generateSelector(this._hoveredElement, { testIdAttributeName: this._recorder.state.testIdAttributeName, multiple: false });
+      const generated = this._recorder.injectedScript.generateSelector(this._hoveredElement, { testIdAttributeName: this._recorder.state.testIdAttributeName, multiple: true });
+      
+      // Create tooltip text with cycling info
+      let tooltipText = this._recorder.injectedScript.utils.asLocator(this._recorder.state.language, generated.selector);
+      
+      
       model = {
         selector: generated.selector,
+        selectors: generated.selectors,
+        currentSelectorIndex: 0,
         elements: generated.elements,
-        tooltipText: this._recorder.injectedScript.utils.asLocator(this._recorder.state.language, generated.selector),
+        tooltipText: tooltipText,
         color: this._assertVisibility ? HighlightColors.assert : HighlightColors.single,
       };
     }
@@ -209,6 +216,37 @@ class InspectTool implements RecorderTool {
     this._hoveredElement = null;
     this._hoveredModel = null;
     this._recorder.updateHighlight(null, userGesture);
+  }
+
+  // Public methods for cycling through locators
+  cycleToNextLocator(): boolean {
+    if (!this._hoveredModel?.selectors || this._hoveredModel.selectors.length <= 1)
+      return false;
+
+    const newModel = this._recorder.cycleToNextLocator(this._hoveredModel);
+    if (newModel) {
+      this._hoveredModel = newModel;
+      this._recorder.updateHighlight(newModel, true);
+      return true;
+    }
+    return false;
+  }
+
+  cycleToPreviousLocator(): boolean {
+    if (!this._hoveredModel?.selectors || this._hoveredModel.selectors.length <= 1)
+      return false;
+
+    const newModel = this._recorder.cycleToPreviousLocator(this._hoveredModel);
+    if (newModel) {
+      this._hoveredModel = newModel;
+      this._recorder.updateHighlight(newModel, true);
+      return true;
+    }
+    return false;
+  }
+
+  hasMultipleLocators(): boolean {
+    return this._hoveredModel?.selectors ? this._hoveredModel.selectors.length > 1 : false;
   }
 }
 
@@ -1040,7 +1078,7 @@ class Overlay {
 
     // Note: The following assertion buttons are hidden from the overlay but still available in the main inspector:
     // - Assert clickable (this._assertClickableToggle)
-    // - Assert detached (this._assertDetachedToggle) 
+    // - Assert detached (this._assertDetachedToggle)
     // - Assert focus (this._assertFocusToggle)
     // - Assert attribute (this._assertAttributeToggle)
 
@@ -1168,6 +1206,7 @@ class Overlay {
     this._assertFocusToggle.classList.toggle('disabled', state.mode === 'none' || state.mode === 'standby' || state.mode === 'inspecting');
     this._assertAttributeToggle.classList.toggle('toggled', state.mode === 'assertingAttribute');
     this._assertAttributeToggle.classList.toggle('disabled', state.mode === 'none' || state.mode === 'standby' || state.mode === 'inspecting');
+    
     if (this._offsetX !== state.overlay.offsetX) {
       this._offsetX = state.overlay.offsetX;
       this._updateVisualPosition();
@@ -1306,6 +1345,29 @@ export class Recorder {
     if (injectedScript.isUnderTest)
       console.error('Recorder script ready for test'); // eslint-disable-line no-console
     injectedScript.consoleApi.install();
+    
+    // Expose global cycle function for the Inspector UI
+    this._exposeGlobalCycleFunction();
+  }
+
+  private _exposeGlobalCycleFunction() {
+    (this.injectedScript.window as any).playwrightCycleLocator = (direction: string) => {
+      const inspectTool = this._tools.inspecting as InspectTool;
+      if (inspectTool && inspectTool._hoveredModel) {
+        let newModel: HighlightModel | null = null;
+        if (direction === 'next') {
+          newModel = this.cycleToNextLocator(inspectTool._hoveredModel);
+        } else if (direction === 'prev') {
+          newModel = this.cycleToPreviousLocator(inspectTool._hoveredModel);
+        }
+        
+        if (newModel && newModel.selector) {
+          inspectTool._hoveredModel = newModel;
+          this.updateHighlight(newModel, true);
+          this.elementPicked(newModel.selector, newModel);
+        }
+      }
+    };
   }
 
   installListeners() {
@@ -1529,6 +1591,7 @@ export class Recorder {
       return;
     if (this._ignoreOverlayEvent(event))
       return;
+    
     this._currentTool.onKeyDown?.(event);
   }
 
@@ -1550,10 +1613,23 @@ export class Recorder {
     let tooltipText = model?.tooltipText;
     if (tooltipText === undefined && model?.selector)
       tooltipText = this.injectedScript.utils.asLocator(this.state.language, model.selector);
-    if (model)
-      this.highlight.updateHighlight(model.elements.map(element => ({ element, color: model.color, tooltipText })));
-    else
+    
+    // Add cycling info if multiple selectors are available
+    if (model?.selectors && model.selectors.length > 1) {
+      const currentIndex = model.currentSelectorIndex || 0;
+      tooltipText += ` [${currentIndex + 1}/${model.selectors.length}]`;
+    }
+    
+    if (model) {
+      this.highlight.updateHighlight(model.elements.map(element => ({
+        element,
+        color: model.color,
+        tooltipText
+      })));
+    } else {
       this.highlight.clearHighlight();
+    }
+    
     if (userGesture)
       this._delegate.highlightUpdated?.();
   }
@@ -1591,7 +1667,61 @@ export class Recorder {
 
   elementPicked(selector: string, model: HighlightModel) {
     const ariaSnapshot = this.injectedScript.ariaSnapshot(model.elements[0]);
-    void this._delegate.elementPicked?.({ selector, ariaSnapshot });
+    void this._delegate.elementPicked?.({
+      selector,
+      ariaSnapshot,
+      selectors: model.selectors,
+      currentSelectorIndex: model.currentSelectorIndex
+    });
+  }
+
+  // Cycling through alternative locators
+  cycleToNextLocator(model: HighlightModel): HighlightModel | null {
+    if (!model.selectors || model.selectors.length <= 1)
+      return null;
+
+    const currentIndex = model.currentSelectorIndex || 0;
+    const nextIndex = (currentIndex + 1) % model.selectors.length;
+    const nextSelector = model.selectors[nextIndex];
+
+    // Parse and query the new selector to get matching elements
+    const parsedSelector = this.injectedScript.parseSelector(nextSelector);
+    const elements = this.injectedScript.querySelectorAll(parsedSelector, model.elements[0].ownerDocument);
+
+    // Create tooltip text with cycling info
+    const tooltipText = this.injectedScript.utils.asLocator(this.state.language, nextSelector);
+
+    return {
+      ...model,
+      selector: nextSelector,
+      currentSelectorIndex: nextIndex,
+      elements: elements,
+      tooltipText: tooltipText,
+    };
+  }
+
+  cycleToPreviousLocator(model: HighlightModel): HighlightModel | null {
+    if (!model.selectors || model.selectors.length <= 1)
+      return null;
+
+    const currentIndex = model.currentSelectorIndex || 0;
+    const nextIndex = currentIndex === 0 ? model.selectors.length - 1 : currentIndex - 1;
+    const nextSelector = model.selectors[nextIndex];
+
+    // Parse and query the new selector to get matching elements
+    const parsedSelector = this.injectedScript.parseSelector(nextSelector);
+    const elements = this.injectedScript.querySelectorAll(parsedSelector, model.elements[0].ownerDocument);
+
+    // Create tooltip text with cycling info
+    const tooltipText = this.injectedScript.utils.asLocator(this.state.language, nextSelector);
+
+    return {
+      ...model,
+      selector: nextSelector,
+      currentSelectorIndex: nextIndex,
+      elements: elements,
+      tooltipText: tooltipText,
+    };
   }
 }
 
@@ -1714,6 +1844,8 @@ function consumeEvent(e: Event) {
 
 type HighlightModel = {
   selector?: string;
+  selectors?: string[];  // All available selectors for cycling
+  currentSelectorIndex?: number;  // Current selector index when cycling
   elements: Element[];
   color: string;
   tooltipText?: string;

@@ -43,6 +43,19 @@ x-pw-tooltip {
   overflow: hidden;
 }
 
+x-pw-tooltip[style*="cursor: pointer"] {
+  transition: box-shadow 0.2s ease;
+}
+
+x-pw-tooltip[style*="cursor: pointer"]:hover {
+  box-shadow: 0 0.5rem 1.2rem rgba(0, 0, 0, .4);
+  background-color: #f8f9fa;
+}
+
+x-pw-tooltip[style*="cursor: pointer"] x-pw-tooltip-line {
+  color: #0066cc;
+}
+
 x-pw-tooltip-line {
   display: flex;
   max-width: 600px;

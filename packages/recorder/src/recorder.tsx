@@ -64,9 +64,22 @@ export const Recorder: React.FC<RecorderProps> = ({
   }, [sources, fileId]);
 
   const [locator, setLocator] = React.useState('');
+  const [allSelectors, setAllSelectors] = React.useState<string[]>([]);
+  const [currentSelectorIndex, setCurrentSelectorIndex] = React.useState(0);
+  
   window.playwrightElementPicked = (elementInfo: ElementInfo, userGesture?: boolean) => {
     const language = source.language;
     setLocator(asLocator(language, elementInfo.selector));
+    
+    // Handle multiple selectors
+    if (elementInfo.selectors && elementInfo.selectors.length > 1) {
+      setAllSelectors(elementInfo.selectors.map(s => asLocator(language, s)));
+      setCurrentSelectorIndex(elementInfo.currentSelectorIndex || 0);
+    } else {
+      setAllSelectors([]);
+      setCurrentSelectorIndex(0);
+    }
+    
     setAriaSnapshot(elementInfo.ariaSnapshot);
     setAriaSnapshotErrors([]);
     if (userGesture && selectedTab !== 'locator' && selectedTab !== 'aria')
@@ -114,6 +127,21 @@ export const Recorder: React.FC<RecorderProps> = ({
     setLocator(selector);
     window.dispatch({ event: 'highlightRequested', params: { selector } });
   }, [mode]);
+
+  const cycleToNextLocator = React.useCallback(() => {
+    if (allSelectors.length <= 1) return;
+    
+    const nextIndex = (currentSelectorIndex + 1) % allSelectors.length;
+    setCurrentSelectorIndex(nextIndex);
+    const nextLocator = allSelectors[nextIndex];
+    setLocator(nextLocator);
+    
+    // Update the highlight and send the new selector
+    window.dispatch({ event: 'highlightRequested', params: { selector: nextLocator } });
+    
+    // Trigger cycling in the injected recorder
+    window.dispatch({ event: 'cycleLocator', params: { direction: 'next' } }).catch(() => { });
+  }, [allSelectors, currentSelectorIndex]);
 
   const onAriaEditorChange = React.useCallback((ariaSnapshot: string) => {
     if (mode === 'none' || mode === 'inspecting')
@@ -284,7 +312,17 @@ export const Recorder: React.FC<RecorderProps> = ({
       sidebarSize={200}
       main={<CodeMirrorWrapper text={sourceText} language={source.language} highlight={source.highlight} revealLine={source.revealLine} readOnly={false} lineNumbers={true} onChange={onSourceChange} onCursorChange={onCursorChange} />}
       sidebar={<TabbedPane
-        rightToolbar={selectedTab === 'locator' || selectedTab === 'aria' ? [<ToolbarButton key={1} icon='files' title='Copy' onClick={() => copy((selectedTab === 'locator' ? locator : ariaSnapshot) || '')} />] : []}
+        rightToolbar={selectedTab === 'locator' || selectedTab === 'aria' ? [
+          ...(selectedTab === 'locator' && allSelectors.length > 1 ? [
+            <ToolbarButton
+              key='cycle'
+              icon='arrow-right'
+              title={`Cycle locator (${currentSelectorIndex + 1}/${allSelectors.length})`}
+              onClick={cycleToNextLocator}
+            />
+          ] : []),
+          <ToolbarButton key={1} icon='files' title='Copy' onClick={() => copy((selectedTab === 'locator' ? locator : ariaSnapshot) || '')} />
+        ] : []}
         tabs={[
           {
             id: 'locator',

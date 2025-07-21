@@ -37,6 +37,8 @@ export type Mode =
 export type ElementInfo = {
   selector: string;
   ariaSnapshot: string;
+  selectors?: string[];
+  currentSelectorIndex?: number;
 };
 
 export type EventData = {
@@ -47,7 +49,8 @@ export type EventData = {
     | 'pause'
     | 'setMode'
     | 'highlightRequested'
-    | 'fileChanged';
+    | 'fileChanged'
+    | 'cycleLocator';
   params: any;
 };
 

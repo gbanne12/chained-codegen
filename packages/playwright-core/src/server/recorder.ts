@@ -133,6 +133,10 @@ export class Recorder implements InstrumentationListener, IRecorder {
         this._contextRecorder.clearScript();
         return;
       }
+      if (data.event === 'cycleLocator') {
+        this._contextRecorder.cycleLocator(data.params.direction);
+        return;
+      }
       if (data.event === 'runTask') {
         this._contextRecorder.runTask(data.params.task);
         return;
@@ -185,7 +189,12 @@ export class Recorder implements InstrumentationListener, IRecorder {
 
     await this._context.exposeBinding('__pw_recorderElementPicked', false, async ({ frame }, elementInfo: ElementInfo) => {
       const selectorChain = await generateFrameSelector(frame);
-      await this._recorderApp?.elementPicked({ selector: buildFullSelector(selectorChain, elementInfo.selector), ariaSnapshot: elementInfo.ariaSnapshot }, true);
+      await this._recorderApp?.elementPicked({ 
+        selector: buildFullSelector(selectorChain, elementInfo.selector), 
+        ariaSnapshot: elementInfo.ariaSnapshot,
+        selectors: elementInfo.selectors?.map(s => buildFullSelector(selectorChain, s)),
+        currentSelectorIndex: elementInfo.currentSelectorIndex
+      }, true);
     });
 
     await this._context.exposeBinding('__pw_recorderSetMode', false, async ({ frame }, mode: Mode) => {
