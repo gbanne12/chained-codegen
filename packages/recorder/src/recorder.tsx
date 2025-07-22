@@ -269,6 +269,14 @@ export const Recorder: React.FC<RecorderProps> = ({
     }
   }, [locator, currentLine, sourceText]);
 
+  const generateFilterLocator = React.useCallback(() => {
+    if (mode === 'none' || mode === 'inspecting')
+      window.dispatch({ event: 'setMode', params: { mode: 'standby' } });
+    
+    // Request a filter-based locator generation
+    window.dispatch({ event: 'generateFilter' }).catch(() => { });
+  }, [mode]);
+
   return <div className='recorder'>
     <Toolbar>
       <ToolbarButton icon='circle-large-filled' title='Record' toggled={mode === 'recording' || mode === 'recording-inspecting' || mode === 'assertingText' || mode === 'assertingVisibility' || mode === 'assertingValue' || mode === 'assertingSnapshot' || mode === 'assertingClickable' || mode === 'assertingDetached' || mode === 'assertingFocus' || mode === 'assertingAttribute'} onClick={() => {
@@ -361,6 +369,12 @@ export const Recorder: React.FC<RecorderProps> = ({
             />
           ] : []),
           ...(selectedTab === 'locator' && locator ? [
+            <ToolbarButton
+              key='filter'
+              icon='filter'
+              title='Generate filter-based locator'
+              onClick={generateFilterLocator}
+            />,
             <ToolbarButton
               key='replace'
               icon='replace'
