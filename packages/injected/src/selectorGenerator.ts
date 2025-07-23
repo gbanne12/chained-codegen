@@ -36,8 +36,9 @@ type Cache = {
 const kTextScoreRange = 10;
 const kExactPenalty = kTextScoreRange / 2;
 
-const kRoleWithNameScore = 1;  // Role with accessible name - highest priority
-const kLabelScore = 2;         // Label - second priority
+const kLandmarkScore = 1;
+const kRoleWithNameScore = 2;  // Role with accessible name
+const kLabelScore = 3;         // Label - second priority
 const kPlaceholderScore = 5;   // Placeholder - preferred over testId but behind role/label
 const kTitleScore = 6;         // Title - preferred over testId but behind role/label and placeholder
 const kTestIdScore = 10;       // testIdAttributeName - fallback after role/label/placeholder/title
@@ -46,9 +47,11 @@ const kOtherTestIdScore = 12;  // other data-test* attributes
 const kIframeByAttributeScore = 20;
 
 const kBeginPenalizedScore = 50;
-const kAltTextScore = 160;
+const kTextScoreRegex = 160;
+
 const kTextScore = 180;
-const kTextScoreRegex = 250;
+const kAltTextScore = 250;
+
 const kPlaceholderScoreExact = kPlaceholderScore + kExactPenalty;
 const kLabelScoreExact = kLabelScore + kExactPenalty;
 const kRoleWithNameScoreExact = kRoleWithNameScore + kExactPenalty;
@@ -65,6 +68,8 @@ const kNthScore = 10000;
 const kCSSFallbackScore = 10000000;
 
 const kScoreThresholdForTextExpect = 1000;
+
+
 
 export type GenerateSelectorOptions = {
   testIdAttributeName: string;
@@ -173,8 +178,8 @@ function generateSelectorFor(cache: Cache, injectedScript: InjectedScript, targe
       textCandidates = filterRegexTokens(textCandidates);
     }
     const noTextCandidates = buildNoTextCandidates(injectedScript, element, options)
-        .filter(token => !options.omitInternalEngines || !token.engine.startsWith('internal:'))
-        .map(token => [token]);
+      .filter(token => !options.omitInternalEngines || !token.engine.startsWith('internal:'))
+      .map(token => [token]);
 
     // First check all text and non-text candidates for the element.
     let result = chooseFirstSelector(injectedScript, options.root ?? targetElement.ownerDocument, element, [...textCandidates, ...noTextCandidates], allowNthMatch);
@@ -203,6 +208,24 @@ function generateSelectorFor(cache: Cache, injectedScript: InjectedScript, targe
         const parentTokens = calculateCached(parent, allowParentText);
         if (!parentTokens)
           continue;
+
+        // Check for landmark first to prioritize chained selectors
+        const landmark = getLandmark(parent);
+        if (landmark) {
+          const landmarkToken: SelectorToken = { engine: 'internal:role', selector: landmark, score: kLandmarkScore };
+          const bestCandidateForLandmark = chooseFirstSelector(injectedScript, parent, element, candidates, allowNthMatch);
+          if (bestCandidateForLandmark) {
+            const landmarkCombined = [landmarkToken, ...bestCandidateForLandmark];
+            // Give landmark selectors preference by using a lower threshold
+            const landmarkThreshold = result ? combineScores(result) + 50 : Infinity;
+            if (combineScores(landmarkCombined) < landmarkThreshold) {
+              result = landmarkCombined;
+              bestPossibleInParent = bestCandidateForLandmark;
+              continue; // Found a good landmark selector, continue to check other parents
+            }
+          }
+        }
+
         // Even the best selector won't be too good - skip this parent.
         if (result && combineScores([...parentTokens, ...bestPossibleInParent]) >= combineScores(result))
           continue;
@@ -235,6 +258,16 @@ function generateSelectorFor(cache: Cache, injectedScript: InjectedScript, targe
   };
 
   return calculate(targetElement, !options.noText);
+}
+
+function getLandmark(element: Element): string | null {
+  const role = getAriaRole(element);
+  if (!role)
+    return null;
+  const landmarkRoles = ['region', 'tabpanel', 'main', 'navigation', 'banner', 'contentinfo', 'search', 'form', 'list', 'listitem', 'grid', 'table', 'row', 'cell'];
+  if (landmarkRoles.includes(role))
+    return role;
+  return null;
 }
 
 function buildNoTextCandidates(injectedScript: InjectedScript, element: Element, options: InternalOptions): SelectorToken[] {
@@ -365,11 +398,14 @@ function buildTextCandidates(injectedScript: InjectedScript, element: Element, i
         candidates.push([{ engine: 'internal:role', selector: `${ariaRole}[name=${escapeForAttributeSelector(alternative.text, false)}]`, score: kRoleWithNameScore - alternative.scoreBonus }]);
     } else {
       const roleToken = { engine: 'internal:role', selector: `${ariaRole}`, score: kRoleWithoutNameScore };
-      for (const alternative of textAlternatives)
-        candidates.push([roleToken, { engine: 'internal:has-text', selector: escapeForTextSelector(alternative.text, false), score: kTextScore - alternative.scoreBonus }]);
+      for (const alternative of textAlternatives) {
+        // Give role-based filters better score than CSS-based filters
+        const roleFilterScore = kTextScore - alternative.scoreBonus - 10;
+        candidates.push([roleToken, { engine: 'internal:has-text', selector: escapeForTextSelector(alternative.text, false), score: roleFilterScore }]);
+      }
       if (text.length <= 80) {
         const re = new RegExp('^' + escapeRegExp(text) + '$');
-        candidates.push([roleToken, { engine: 'internal:has-text', selector: escapeForTextSelector(re, false), score: kTextScoreRegex }]);
+        candidates.push([roleToken, { engine: 'internal:has-text', selector: escapeForTextSelector(re, false), score: kTextScoreRegex - 10 }]);
       }
     }
   }
@@ -471,7 +507,7 @@ function joinTokens(tokens: SelectorToken[]): string {
   const parts = [];
   let lastEngine = '';
   for (const { engine, selector } of tokens) {
-    if (parts.length  && (lastEngine !== 'css' || engine !== 'css' || selector.startsWith(':nth-match(')))
+    if (parts.length && (lastEngine !== 'css' || engine !== 'css' || selector.startsWith(':nth-match(')))
       parts.push('>>');
     lastEngine = engine;
     if (engine === 'css')
@@ -600,32 +636,32 @@ function escapeClassName(className: string): string {
 
 function generateTextVariants(cache: Cache, injectedScript: InjectedScript, targetElement: Element, options: InternalOptions): (SelectorToken[] | null)[] {
   const variants: (SelectorToken[] | null)[] = [];
-  
+
   // Try with boosted placeholder priority
   if (targetElement.getAttribute('placeholder')) {
     cache.allowText.clear();
     cache.disallowText.clear();
     variants.push(generateSelectorFor(cache, injectedScript, targetElement, { ...options, forceTextType: 'placeholder' }));
   }
-  
+
   // Try with boosted title priority
   if (targetElement.getAttribute('title')) {
     cache.allowText.clear();
     cache.disallowText.clear();
     variants.push(generateSelectorFor(cache, injectedScript, targetElement, { ...options, forceTextType: 'title' }));
   }
-  
+
   // Try with exact text matching
   cache.allowText.clear();
   cache.disallowText.clear();
   variants.push(generateSelectorFor(cache, injectedScript, targetElement, { ...options, preferExactText: true }));
-  
+
   return variants;
 }
 
 function generateFilterVariants(cache: Cache, injectedScript: InjectedScript, targetElement: Element, options: InternalOptions): (SelectorToken[] | null)[] {
   const variants: (SelectorToken[] | null)[] = [];
-  
+
   // Try to generate filter-based selectors
   const text = elementText(injectedScript._evaluator._cacheText, targetElement).normalized;
   if (text && text.length > 0 && text.length < 100) {
@@ -636,7 +672,7 @@ function generateFilterVariants(cache: Cache, injectedScript: InjectedScript, ta
       { engine: 'internal:has-text', selector: escapeForTextSelector(text, false), score: kTextScore }
     ];
     variants.push(filterTokens);
-    
+
     // Try role-based filter if element has a role
     const ariaRole = getAriaRole(targetElement);
     if (ariaRole && !['none', 'presentation'].includes(ariaRole)) {
@@ -647,6 +683,6 @@ function generateFilterVariants(cache: Cache, injectedScript: InjectedScript, ta
       variants.push(roleFilterTokens);
     }
   }
-  
+
   return variants;
 }
