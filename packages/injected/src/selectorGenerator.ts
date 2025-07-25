@@ -34,9 +34,12 @@ type Cache = {
 };
 
 const kTextScoreRange = 10;
-const kExactPenalty = kTextScoreRange / 2;
+const kExactPenalty = 2;  // Reduced from kTextScoreRange / 2 to make exact matches less heavily favored
 
-const kRoleWithNameScore = 1;  // Role with accessible name - highest priority
+const kLandmarkScore = -50;  // Very strong preference for landmark-based selectors
+const kHierarchicalBonus = -25;  // Bonus for any hierarchical selector
+
+const kRoleWithNameScore = 3;  // Role with accessible name - highest priority
 const kLabelScore = 2;         // Label - second priority
 const kTestIdScore = 10;       // testIdAttributeName - fallback after role/label
 const kOtherTestIdScore = 12;  // other data-test* attributes
@@ -178,11 +181,7 @@ function generateSelectorFor(cache: Cache, injectedScript: InjectedScript, targe
       // Use the deepest possible text selector - works pretty good and saves on compute time.
       const allowParentText = allowText && !textCandidatesToUse.length;
 
-      const candidates = [...textCandidatesToUse, ...noTextCandidates].filter(c => {
-        if (!result)
-          return true;
-        return combineScores(c) < combineScores(result);
-      });
+      const candidates = [...textCandidatesToUse, ...noTextCandidates];
 
       // This is best theoretically possible candidate from the current parent.
       // We use the fact that widening the scope to grand-parent makes any selector
@@ -191,20 +190,49 @@ function generateSelectorFor(cache: Cache, injectedScript: InjectedScript, targe
       if (!bestPossibleInParent)
         return;
 
-      for (let parent = parentElementOrShadowHost(element); parent && parent !== options.root; parent = parentElementOrShadowHost(parent)) {
+      // Force hierarchical selectors by searching up to 5 ancestor levels
+      let ancestorCount = 0;
+      let bestHierarchicalResult: SelectorToken[] | null = null;
+      
+      for (let parent = parentElementOrShadowHost(element); parent && parent !== options.root && ancestorCount < 5; parent = parentElementOrShadowHost(parent), ancestorCount++) {
         const parentTokens = calculateCached(parent, allowParentText);
         if (!parentTokens)
           continue;
-        // Even the best selector won't be too good - skip this parent.
-        if (result && combineScores([...parentTokens, ...bestPossibleInParent]) >= combineScores(result))
-          continue;
+
+        // Always try to create a hierarchical selector when we find a landmark parent
+        const landmark = getLandmark(parent);
+        if (landmark) {
+          const landmarkToken: SelectorToken = { engine: 'internal:role', selector: landmark, score: kLandmarkScore };
+          const newChildResult = chooseFirstSelector(injectedScript, parent, element, candidates, allowNthMatch);
+          if (newChildResult) {
+            const hierarchicalResult = [landmarkToken, ...newChildResult];
+            if (!bestHierarchicalResult || combineScores(hierarchicalResult) < combineScores(bestHierarchicalResult)) {
+              bestHierarchicalResult = hierarchicalResult;
+              bestPossibleInParent = newChildResult;
+            }
+          }
+        }
         // Update the best candidate that finds "element" in the "parent".
-        bestPossibleInParent = chooseFirstSelector(injectedScript, parent, element, candidates, allowNthMatch);
-        if (!bestPossibleInParent)
-          return;
-        const combined = [...parentTokens, ...bestPossibleInParent];
-        if (!result || combineScores(combined) < combineScores(result))
-          result = combined;
+        const bestFromParent = chooseFirstSelector(injectedScript, parent, element, candidates, allowNthMatch);
+        if (bestFromParent) {
+          bestPossibleInParent = bestFromParent;
+          const combined = [...parentTokens, ...bestFromParent];
+          // Apply hierarchical bonus to multi-token selectors
+          const hierarchicalScore = combineScores(combined) + kHierarchicalBonus;
+          if (!bestHierarchicalResult || hierarchicalScore < combineScores(bestHierarchicalResult)) {
+            // Create a new array with the hierarchical bonus applied
+            const bonusTokens = combined.map((token, index) =>
+              index === 0 ? { ...token, score: token.score + kHierarchicalBonus } : token
+            );
+            bestHierarchicalResult = bonusTokens;
+          }
+        }
+      }
+
+      // Prefer hierarchical results over simple ones
+      if (bestHierarchicalResult) {
+        if (!result || combineScores(bestHierarchicalResult) <= combineScores(result) + 50)
+          result = bestHierarchicalResult;
       }
     };
 
@@ -227,6 +255,22 @@ function generateSelectorFor(cache: Cache, injectedScript: InjectedScript, targe
   };
 
   return calculate(targetElement, !options.noText);
+}
+
+function getLandmark(element: Element): string | null {
+  const role = getAriaRole(element);
+  if (!role)
+    return null;
+  const landmarkRoles = [
+    'region', 'tabpanel', 'main', 'navigation', 'banner', 'contentinfo', 'search', 'form',
+    'list', 'listitem', 'grid', 'table', 'row', 'cell', 'article', 'section', 'menu',
+    'menubar', 'menuitem', 'toolbar', 'tab', 'tablist', 'dialog', 'alertdialog', 'group',
+    'tree', 'treeitem', 'gridcell', 'rowheader', 'columnheader', 'combobox', 'listbox',
+    'option', 'radiogroup', 'radio', 'checkbox', 'button', 'link'
+  ];
+  if (landmarkRoles.includes(role))
+    return role;
+  return null;
 }
 
 function buildNoTextCandidates(injectedScript: InjectedScript, element: Element, options: InternalOptions): SelectorToken[] {
@@ -455,7 +499,7 @@ function joinTokens(tokens: SelectorToken[]): string {
   const parts = [];
   let lastEngine = '';
   for (const { engine, selector } of tokens) {
-    if (parts.length  && (lastEngine !== 'css' || engine !== 'css' || selector.startsWith(':nth-match(')))
+    if (parts.length && (lastEngine !== 'css' || engine !== 'css' || selector.startsWith(':nth-match(')))
       parts.push('>>');
     lastEngine = engine;
     if (engine === 'css')
@@ -468,8 +512,8 @@ function joinTokens(tokens: SelectorToken[]): string {
 
 function combineScores(tokens: SelectorToken[]): number {
   let score = 0;
-  for (let i = 0; i < tokens.length; i++)
-    score += tokens[i].score * (tokens.length - i);
+  for (const token of tokens)
+    score += token.score;
   return score;
 }
 
