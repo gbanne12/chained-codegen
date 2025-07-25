@@ -290,10 +290,6 @@ class RecordActionTool implements RecorderTool {
     if (this._consumedDueToNoModel(event, this._hoveredModel))
       return;
 
-    // Populate the inspector with all available locators when an element is clicked
-    if (this._hoveredModel && this._hoveredModel.selectors)
-      this._recorder.elementPicked(this._hoveredModel.selector, this._hoveredModel);
-
     const checkbox = asCheckbox(this._recorder.deepEventTarget(event));
     if (checkbox) {
       // Interestingly, inputElement.checked is reversed inside this event handler.
@@ -335,10 +331,6 @@ class RecordActionTool implements RecorderTool {
     if (this._consumedDueToNoModel(event, this._hoveredModel))
       return;
 
-    // Populate the inspector with all available locators when an element is double-clicked
-    if (this._hoveredModel && this._hoveredModel.selectors)
-      this._recorder.elementPicked(this._hoveredModel.selector, this._hoveredModel);
-
     this._cancelPendingClickAction();
 
     this._performAction({
@@ -374,10 +366,6 @@ class RecordActionTool implements RecorderTool {
       return;
     if (this._consumedDueToNoModel(event, this._hoveredModel))
       return;
-
-    // Populate the inspector with all available locators when an element is right-clicked
-    if (this._hoveredModel && this._hoveredModel.selectors)
-      this._recorder.elementPicked(this._hoveredModel.selector, this._hoveredModel);
 
     this._performAction({
       name: 'click',
@@ -661,16 +649,10 @@ class RecordActionTool implements RecorderTool {
       this._recorder.updateHighlight(null, true);
       return;
     }
-    const generated = this._recorder.injectedScript.generateSelector(this._hoveredElement, { testIdAttributeName: this._recorder.state.testIdAttributeName, multiple: true });
-    if (this._hoveredModel && this._hoveredModel.selector === generated.selector)
+    const { selector, elements } = this._recorder.injectedScript.generateSelector(this._hoveredElement, { testIdAttributeName: this._recorder.state.testIdAttributeName });
+    if (this._hoveredModel && this._hoveredModel.selector === selector)
       return;
-    this._hoveredModel = generated.selector ? {
-      selector: generated.selector,
-      selectors: generated.selectors,
-      currentSelectorIndex: 0,
-      elements: generated.elements,
-      color: HighlightColors.action
-    } : null;
+    this._hoveredModel = selector ? { selector, elements, color: HighlightColors.action } : null;
     this._recorder.updateHighlight(this._hoveredModel, true);
   }
 }
@@ -1373,10 +1355,11 @@ export class Recorder {
       const inspectTool = this._tools.inspecting as InspectTool;
       if (inspectTool && inspectTool._hoveredModel) {
         let newModel: HighlightModel | null = null;
-        if (direction === 'next')
+        if (direction === 'next') {
           newModel = this.cycleToNextLocator(inspectTool._hoveredModel);
-        else if (direction === 'prev')
+        } else if (direction === 'prev') {
           newModel = this.cycleToPreviousLocator(inspectTool._hoveredModel);
+        }
         
         if (newModel && newModel.selector) {
           inspectTool._hoveredModel = newModel;

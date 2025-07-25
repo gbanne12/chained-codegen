@@ -66,11 +66,11 @@ export const Recorder: React.FC<RecorderProps> = ({
   const [locator, setLocator] = React.useState('');
   const [allSelectors, setAllSelectors] = React.useState<string[]>([]);
   const [currentSelectorIndex, setCurrentSelectorIndex] = React.useState(0);
-
+  
   window.playwrightElementPicked = (elementInfo: ElementInfo, userGesture?: boolean) => {
     const language = source.language;
     setLocator(asLocator(language, elementInfo.selector));
-
+    
     // Handle multiple selectors
     if (elementInfo.selectors && elementInfo.selectors.length > 1) {
       setAllSelectors(elementInfo.selectors.map(s => asLocator(language, s)));
@@ -79,7 +79,7 @@ export const Recorder: React.FC<RecorderProps> = ({
       setAllSelectors([]);
       setCurrentSelectorIndex(0);
     }
-
+    
     setAriaSnapshot(elementInfo.ariaSnapshot);
     setAriaSnapshotErrors([]);
     if (userGesture && selectedTab !== 'locator' && selectedTab !== 'aria')
@@ -129,17 +129,16 @@ export const Recorder: React.FC<RecorderProps> = ({
   }, [mode]);
 
   const cycleToNextLocator = React.useCallback(() => {
-    if (allSelectors.length <= 1)
-      return;
-
+    if (allSelectors.length <= 1) return;
+    
     const nextIndex = (currentSelectorIndex + 1) % allSelectors.length;
     setCurrentSelectorIndex(nextIndex);
     const nextLocator = allSelectors[nextIndex];
     setLocator(nextLocator);
-
+    
     // Update the highlight and send the new selector
     window.dispatch({ event: 'highlightRequested', params: { selector: nextLocator } });
-
+    
     // Trigger cycling in the injected recorder
     window.dispatch({ event: 'cycleLocator', params: { direction: 'next' } }).catch(() => { });
   }, [allSelectors, currentSelectorIndex]);
@@ -231,52 +230,6 @@ export const Recorder: React.FC<RecorderProps> = ({
     return () => document.removeEventListener('keydown', handleKeyDown);
   }, [moveLineUp, moveLineDown]);
 
-  const replaceLocatorInCurrentLine = React.useCallback(() => {
-    if (!locator || currentLine < 0)
-      return;
-
-    const lines = sourceText.split('\n');
-    if (currentLine >= lines.length)
-      return;
-
-    const currentLineText = lines[currentLine];
-
-    // Regular expression to find and replace ONLY the locator part, preserving method calls
-    // This pattern matches from 'page.' to the end of the locator (before any action methods)
-    // It handles nested parentheses and chained locator methods like .first(), .nth(), .filter()
-    const locatorPattern = /page\.((?:getBy\w+|locator)\([^)]*(?:\([^)]*\))*[^)]*\)(?:\.(first|last|nth|filter)\([^)]*(?:\([^)]*\))*[^)]*\))*)/;
-
-    const match = currentLineText.match(locatorPattern);
-    let newLineText = currentLineText;
-
-    if (match && match.index !== undefined) {
-      // Replace only the matched locator part with the new locator
-      const fullMatch = match[0]; // The entire locator part (e.g., "page.getByRole('button').first()")
-      const beforeLocator = currentLineText.substring(0, match.index);
-      const afterLocator = currentLineText.substring(match.index + fullMatch.length);
-
-      // Construct the new line: everything before + new locator + everything after
-      newLineText = beforeLocator + `page.${locator}` + afterLocator;
-    }
-
-    // Only update if the line actually changed
-    if (newLineText !== currentLineText) {
-      lines[currentLine] = newLineText;
-      const newText = lines.join('\n');
-      setSourceText(newText);
-      // Note: This only updates the UI, not the underlying actions
-      // In a future enhancement, we could map changes back to action modifications
-    }
-  }, [locator, currentLine, sourceText]);
-
-  const generateFilterLocator = React.useCallback(() => {
-    if (mode === 'none' || mode === 'inspecting')
-      window.dispatch({ event: 'setMode', params: { mode: 'standby' } });
-    
-    // Request a filter-based locator generation
-    window.dispatch({ event: 'generateFilter' }).catch(() => { });
-  }, [mode]);
-
   return <div className='recorder'>
     <Toolbar>
       <ToolbarButton icon='circle-large-filled' title='Record' toggled={mode === 'recording' || mode === 'recording-inspecting' || mode === 'assertingText' || mode === 'assertingVisibility' || mode === 'assertingValue' || mode === 'assertingSnapshot' || mode === 'assertingClickable' || mode === 'assertingDetached' || mode === 'assertingFocus' || mode === 'assertingAttribute'} onClick={() => {
@@ -366,20 +319,6 @@ export const Recorder: React.FC<RecorderProps> = ({
               icon='arrow-right'
               title={`Cycle locator (${currentSelectorIndex + 1}/${allSelectors.length})`}
               onClick={cycleToNextLocator}
-            />
-          ] : []),
-          ...(selectedTab === 'locator' && locator ? [
-            <ToolbarButton
-              key='filter'
-              icon='filter'
-              title='Generate filter-based locator'
-              onClick={generateFilterLocator}
-            />,
-            <ToolbarButton
-              key='replace'
-              icon='replace'
-              title='Replace locator in current line'
-              onClick={replaceLocatorInCurrentLine}
             />
           ] : []),
           <ToolbarButton key={1} icon='files' title='Copy' onClick={() => copy((selectedTab === 'locator' ? locator : ariaSnapshot) || '')} />
