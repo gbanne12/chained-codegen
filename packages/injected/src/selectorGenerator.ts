@@ -183,6 +183,10 @@ function generateSelectorFor(cache: Cache, injectedScript: InjectedScript, targe
 
       const candidates = [...textCandidatesToUse, ...noTextCandidates];
 
+      const allTextCandidates = allowText ? buildTextCandidates(injectedScript, element, element === targetElement) : [];
+      const filteredTextCandidates = element !== targetElement ? filterRegexTokens(allTextCandidates) : allTextCandidates;
+      const hierarchicalCandidates = [...filteredTextCandidates, ...noTextCandidates];
+
       // This is best theoretically possible candidate from the current parent.
       // We use the fact that widening the scope to grand-parent makes any selector
       // even less likely to match.
@@ -202,7 +206,7 @@ function generateSelectorFor(cache: Cache, injectedScript: InjectedScript, targe
         const landmark = getLandmark(parent);
         if (landmark) {
           const landmarkToken: SelectorToken = { engine: 'internal:role', selector: landmark, score: kLandmarkScore };
-          const newChildResult = chooseFirstSelector(injectedScript, parent, element, candidates, allowNthMatch);
+          const newChildResult = chooseFirstSelector(injectedScript, parent, element, hierarchicalCandidates, allowNthMatch);
           if (newChildResult) {
             const hierarchicalResult = [landmarkToken, ...newChildResult];
             if (!bestHierarchicalResult || combineScores(hierarchicalResult) < combineScores(bestHierarchicalResult)) {
@@ -212,7 +216,7 @@ function generateSelectorFor(cache: Cache, injectedScript: InjectedScript, targe
           }
         }
         // Update the best candidate that finds "element" in the "parent".
-        const bestFromParent = chooseFirstSelector(injectedScript, parent, element, candidates, allowNthMatch);
+        const bestFromParent = chooseFirstSelector(injectedScript, parent, element, hierarchicalCandidates, allowNthMatch);
         if (bestFromParent) {
           bestPossibleInParent = bestFromParent;
           const combined = [...parentTokens, ...bestFromParent];
