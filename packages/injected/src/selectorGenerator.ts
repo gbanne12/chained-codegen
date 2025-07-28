@@ -47,11 +47,11 @@ const kOtherTestIdScore = 12;  // other data-test* attributes
 const kIframeByAttributeScore = 20;
 
 const kBeginPenalizedScore = 50;
-const kTextScoreRegex = 160;
-
+const kPlaceholderScore = 120;
+const kAltTextScore = 160;
 const kTextScore = 180;
-const kAltTextScore = 250;
-
+const kTitleScore = 200;
+const kTextScoreRegex = 250;
 const kPlaceholderScoreExact = kPlaceholderScore + kExactPenalty;
 const kLabelScoreExact = kLabelScore + kExactPenalty;
 const kRoleWithNameScoreExact = kRoleWithNameScore + kExactPenalty;
@@ -68,8 +68,6 @@ const kNthScore = 10000;
 const kCSSFallbackScore = 10000000;
 
 const kScoreThresholdForTextExpect = 1000;
-
-
 
 export type GenerateSelectorOptions = {
   testIdAttributeName: string;
@@ -110,10 +108,6 @@ export function generateSelector(injectedScript: InjectedScript, targetElement: 
         const withoutText = generateSelectorFor(cache, injectedScript, targetElement, { ...options, noText: true });
         let tokens = [withText, withoutText];
 
-        // Generate additional text-based variants by forcing different approaches
-        const textVariants = generateTextVariants(cache, injectedScript, targetElement, options);
-        tokens.push(...textVariants.filter(Boolean));
-
         // Clear cache to re-generate without css id.
         cache.allowText.clear();
         cache.disallowText.clear();
@@ -122,10 +116,6 @@ export function generateSelector(injectedScript: InjectedScript, targetElement: 
           tokens.push(generateSelectorFor(cache, injectedScript, targetElement, { ...options, noCSSId: true }));
         if (withoutText && hasCSSIdToken(withoutText))
           tokens.push(generateSelectorFor(cache, injectedScript, targetElement, { ...options, noText: true, noCSSId: true }));
-
-        // Generate filter-based selectors as alternatives
-        const filterVariants = generateFilterVariants(cache, injectedScript, targetElement, options);
-        tokens.push(...filterVariants.filter(Boolean));
 
         tokens = tokens.filter(Boolean);
         if (!tokens.length) {
@@ -158,7 +148,7 @@ function filterRegexTokens(textCandidates: SelectorToken[][]): SelectorToken[][]
   return textCandidates.filter(c => c[0].selector[0] !== '/');
 }
 
-type InternalOptions = GenerateSelectorOptions & { noText?: boolean, noCSSId?: boolean, forceTextType?: 'placeholder' | 'title', preferExactText?: boolean };
+type InternalOptions = GenerateSelectorOptions & { noText?: boolean, noCSSId?: boolean };
 
 function generateSelectorFor(cache: Cache, injectedScript: InjectedScript, targetElement: Element, options: InternalOptions): SelectorToken[] | null {
   if (options.root && !isInsideScope(options.root, targetElement))
@@ -172,14 +162,14 @@ function generateSelectorFor(cache: Cache, injectedScript: InjectedScript, targe
   const calculate = (element: Element, allowText: boolean): SelectorToken[] | null => {
     const allowNthMatch = element === targetElement;
 
-    let textCandidates = allowText ? buildTextCandidates(injectedScript, element, element === targetElement, options) : [];
+    let textCandidates = allowText ? buildTextCandidates(injectedScript, element, element === targetElement) : [];
     if (element !== targetElement) {
       // Do not use regex for parent elements (for performance).
       textCandidates = filterRegexTokens(textCandidates);
     }
     const noTextCandidates = buildNoTextCandidates(injectedScript, element, options)
-      .filter(token => !options.omitInternalEngines || !token.engine.startsWith('internal:'))
-      .map(token => [token]);
+        .filter(token => !options.omitInternalEngines || !token.engine.startsWith('internal:'))
+        .map(token => [token]);
 
     // First check all text and non-text candidates for the element.
     let result = chooseFirstSelector(injectedScript, options.root ?? targetElement.ownerDocument, element, [...textCandidates, ...noTextCandidates], allowNthMatch);
@@ -323,11 +313,9 @@ function buildNoTextCandidates(injectedScript: InjectedScript, element: Element,
   if (element.nodeName === 'INPUT' || element.nodeName === 'TEXTAREA') {
     const input = element as HTMLInputElement | HTMLTextAreaElement;
     if (input.placeholder) {
-      const placeholderScore = options.forceTextType === 'placeholder' ? kLabelScore : kPlaceholderScore;
-      const placeholderScoreExact = options.forceTextType === 'placeholder' ? kLabelScoreExact : kPlaceholderScoreExact;
-      candidates.push({ engine: 'internal:attr', selector: `[placeholder=${escapeForAttributeSelector(input.placeholder, true)}]`, score: placeholderScoreExact });
+      candidates.push({ engine: 'internal:attr', selector: `[placeholder=${escapeForAttributeSelector(input.placeholder, true)}]`, score: kPlaceholderScoreExact });
       for (const alternative of suitableTextAlternatives(input.placeholder))
-        candidates.push({ engine: 'internal:attr', selector: `[placeholder=${escapeForAttributeSelector(alternative.text, false)}]`, score: placeholderScore - alternative.scoreBonus });
+        candidates.push({ engine: 'internal:attr', selector: `[placeholder=${escapeForAttributeSelector(alternative.text, false)}]`, score: kPlaceholderScore - alternative.scoreBonus });
     }
   }
 
@@ -358,18 +346,16 @@ function buildNoTextCandidates(injectedScript: InjectedScript, element: Element,
   return candidates;
 }
 
-function buildTextCandidates(injectedScript: InjectedScript, element: Element, isTargetNode: boolean, options?: InternalOptions): SelectorToken[][] {
+function buildTextCandidates(injectedScript: InjectedScript, element: Element, isTargetNode: boolean): SelectorToken[][] {
   if (element.nodeName === 'SELECT')
     return [];
   const candidates: SelectorToken[][] = [];
 
   const title = element.getAttribute('title');
   if (title) {
-    const titleScore = options?.forceTextType === 'title' ? kLabelScore : kTitleScore;
-    const titleScoreExact = options?.forceTextType === 'title' ? kLabelScoreExact : kTitleScoreExact;
-    candidates.push([{ engine: 'internal:attr', selector: `[title=${escapeForAttributeSelector(title, true)}]`, score: titleScoreExact }]);
+    candidates.push([{ engine: 'internal:attr', selector: `[title=${escapeForAttributeSelector(title, true)}]`, score: kTitleScoreExact }]);
     for (const alternative of suitableTextAlternatives(title))
-      candidates.push([{ engine: 'internal:attr', selector: `[title=${escapeForAttributeSelector(alternative.text, false)}]`, score: titleScore - alternative.scoreBonus }]);
+      candidates.push([{ engine: 'internal:attr', selector: `[title=${escapeForAttributeSelector(alternative.text, false)}]`, score: kTitleScore - alternative.scoreBonus }]);
   }
 
   const alt = element.getAttribute('alt');
@@ -383,14 +369,10 @@ function buildTextCandidates(injectedScript: InjectedScript, element: Element, i
   const textAlternatives = text ? suitableTextAlternatives(text) : [];
   if (text) {
     if (isTargetNode) {
-      if (text.length <= 80) {
-        const exactScore = options?.preferExactText ? kTextScoreExact - 10 : kTextScoreExact;
-        candidates.push([{ engine: 'internal:text', selector: escapeForTextSelector(text, true), score: exactScore }]);
-      }
-      for (const alternative of textAlternatives) {
-        const altScore = options?.preferExactText ? kTextScore + 10 : kTextScore - alternative.scoreBonus;
-        candidates.push([{ engine: 'internal:text', selector: escapeForTextSelector(alternative.text, false), score: altScore }]);
-      }
+      if (text.length <= 80)
+        candidates.push([{ engine: 'internal:text', selector: escapeForTextSelector(text, true), score: kTextScoreExact }]);
+      for (const alternative of textAlternatives)
+        candidates.push([{ engine: 'internal:text', selector: escapeForTextSelector(alternative.text, false), score: kTextScore - alternative.scoreBonus }]);
     }
     const cssToken: SelectorToken = { engine: 'css', selector: escapeNodeName(element), score: kCSSTagNameScore };
     for (const alternative of textAlternatives)
@@ -411,14 +393,11 @@ function buildTextCandidates(injectedScript: InjectedScript, element: Element, i
         candidates.push([{ engine: 'internal:role', selector: `${ariaRole}[name=${escapeForAttributeSelector(alternative.text, false)}]`, score: kRoleWithNameScore - alternative.scoreBonus }]);
     } else {
       const roleToken = { engine: 'internal:role', selector: `${ariaRole}`, score: kRoleWithoutNameScore };
-      for (const alternative of textAlternatives) {
-        // Give role-based filters better score than CSS-based filters
-        const roleFilterScore = kTextScore - alternative.scoreBonus - 10;
-        candidates.push([roleToken, { engine: 'internal:has-text', selector: escapeForTextSelector(alternative.text, false), score: roleFilterScore }]);
-      }
+      for (const alternative of textAlternatives)
+        candidates.push([roleToken, { engine: 'internal:has-text', selector: escapeForTextSelector(alternative.text, false), score: kTextScore - alternative.scoreBonus }]);
       if (text.length <= 80) {
         const re = new RegExp('^' + escapeRegExp(text) + '$');
-        candidates.push([roleToken, { engine: 'internal:has-text', selector: escapeForTextSelector(re, false), score: kTextScoreRegex - 10 }]);
+        candidates.push([roleToken, { engine: 'internal:has-text', selector: escapeForTextSelector(re, false), score: kTextScoreRegex }]);
       }
     }
   }
@@ -520,7 +499,6 @@ function joinTokens(tokens: SelectorToken[]): string {
   const parts = [];
   let lastEngine = '';
   for (const { engine, selector } of tokens) {
-    if (parts.length && (lastEngine !== 'css' || engine !== 'css' || selector.startsWith(':nth-match(')))
     if (parts.length && (lastEngine !== 'css' || engine !== 'css' || selector.startsWith(':nth-match(')))
       parts.push('>>');
     lastEngine = engine;
@@ -646,57 +624,4 @@ function escapeNodeName(node: Node): string {
 function escapeClassName(className: string): string {
   // We are escaping it for document.querySelectorAll, not for usage in CSS file.
   return className.replace(/[:\.]/g, char => '\\' + char);
-}
-
-function generateTextVariants(cache: Cache, injectedScript: InjectedScript, targetElement: Element, options: InternalOptions): (SelectorToken[] | null)[] {
-  const variants: (SelectorToken[] | null)[] = [];
-
-  // Try with boosted placeholder priority
-  if (targetElement.getAttribute('placeholder')) {
-    cache.allowText.clear();
-    cache.disallowText.clear();
-    variants.push(generateSelectorFor(cache, injectedScript, targetElement, { ...options, forceTextType: 'placeholder' }));
-  }
-
-  // Try with boosted title priority
-  if (targetElement.getAttribute('title')) {
-    cache.allowText.clear();
-    cache.disallowText.clear();
-    variants.push(generateSelectorFor(cache, injectedScript, targetElement, { ...options, forceTextType: 'title' }));
-  }
-
-  // Try with exact text matching
-  cache.allowText.clear();
-  cache.disallowText.clear();
-  variants.push(generateSelectorFor(cache, injectedScript, targetElement, { ...options, preferExactText: true }));
-
-  return variants;
-}
-
-function generateFilterVariants(cache: Cache, injectedScript: InjectedScript, targetElement: Element, options: InternalOptions): (SelectorToken[] | null)[] {
-  const variants: (SelectorToken[] | null)[] = [];
-
-  // Try to generate filter-based selectors
-  const text = elementText(injectedScript._evaluator._cacheText, targetElement).normalized;
-  if (text && text.length > 0 && text.length < 100) {
-    // Create a broader selector with filter
-    const tagName = targetElement.nodeName.toLowerCase();
-    const filterTokens: SelectorToken[] = [
-      { engine: 'css', selector: tagName, score: kCSSTagNameScore },
-      { engine: 'internal:has-text', selector: escapeForTextSelector(text, false), score: kTextScore }
-    ];
-    variants.push(filterTokens);
-
-    // Try role-based filter if element has a role
-    const ariaRole = getAriaRole(targetElement);
-    if (ariaRole && !['none', 'presentation'].includes(ariaRole)) {
-      const roleFilterTokens: SelectorToken[] = [
-        { engine: 'internal:role', selector: ariaRole, score: kRoleWithoutNameScore },
-        { engine: 'internal:has-text', selector: escapeForTextSelector(text, false), score: kTextScore }
-      ];
-      variants.push(roleFilterTokens);
-    }
-  }
-
-  return variants;
 }
