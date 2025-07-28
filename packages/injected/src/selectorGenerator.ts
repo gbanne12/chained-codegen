@@ -190,11 +190,10 @@ function generateSelectorFor(cache: Cache, injectedScript: InjectedScript, targe
       if (!bestPossibleInParent)
         return;
 
-      // Force hierarchical selectors by searching up to 5 ancestor levels
+      // Force hierarchical selectors by searching up to 10 ancestor levels
       let ancestorCount = 0;
       let bestHierarchicalResult: SelectorToken[] | null = null;
-      
-      for (let parent = parentElementOrShadowHost(element); parent && parent !== options.root && ancestorCount < 5; parent = parentElementOrShadowHost(parent), ancestorCount++) {
+      for (let parent = parentElementOrShadowHost(element); parent && parent !== options.root && ancestorCount < 10; parent = parentElementOrShadowHost(parent), ancestorCount++) {
         const parentTokens = calculateCached(parent, allowParentText);
         if (!parentTokens)
           continue;
@@ -266,7 +265,7 @@ function getLandmark(element: Element): string | null {
     'list', 'listitem', 'grid', 'table', 'row', 'cell', 'article', 'section', 'menu',
     'menubar', 'menuitem', 'toolbar', 'tab', 'tablist', 'dialog', 'alertdialog', 'group',
     'tree', 'treeitem', 'gridcell', 'rowheader', 'columnheader', 'combobox', 'listbox',
-    'option', 'radiogroup', 'radio', 'checkbox', 'button', 'link'
+    'option', 'radiogroup', 'radio', 'checkbox', 'button', 'link', 'paragraph', 'header',
   ];
   if (landmarkRoles.includes(role))
     return role;
