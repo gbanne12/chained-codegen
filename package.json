@@ -1,6 +1,6 @@
 {
   "name": "chained-codegen",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "bin": {
     "chained-codegen": "./cli.js"
   },
@@ -11,12 +11,8 @@
   "license": "Apache-2.0",
   "files": [
     "cli.js",
-    "packages/playwright/lib/",
-    "packages/playwright/index.js",
-    "packages/playwright/index.d.ts",
-    "packages/playwright-core/lib/",
-    "packages/playwright-core/index.js",
-    "packages/playwright-core/index.d.ts"
+    "packages/playwright/lib/**/*",
+    "packages/playwright-core/lib/**/*"
   ],
   "dependencies": {
     "playwright-core": "^1.53.0"
