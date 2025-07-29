@@ -183,6 +183,10 @@ function generateSelectorFor(cache: Cache, injectedScript: InjectedScript, targe
 
       const candidates = [...textCandidatesToUse, ...noTextCandidates];
 
+      const allTextCandidates = allowText ? buildTextCandidates(injectedScript, element, element === targetElement) : [];
+      const filteredTextCandidates = element !== targetElement ? filterRegexTokens(allTextCandidates) : allTextCandidates;
+      const hierarchicalCandidates = [...filteredTextCandidates, ...noTextCandidates];
+
       // This is best theoretically possible candidate from the current parent.
       // We use the fact that widening the scope to grand-parent makes any selector
       // even less likely to match.
@@ -190,11 +194,10 @@ function generateSelectorFor(cache: Cache, injectedScript: InjectedScript, targe
       if (!bestPossibleInParent)
         return;
 
-      // Force hierarchical selectors by searching up to 5 ancestor levels
+      // Force hierarchical selectors by searching up to 10 ancestor levels
       let ancestorCount = 0;
       let bestHierarchicalResult: SelectorToken[] | null = null;
-      
-      for (let parent = parentElementOrShadowHost(element); parent && parent !== options.root && ancestorCount < 5; parent = parentElementOrShadowHost(parent), ancestorCount++) {
+      for (let parent = parentElementOrShadowHost(element); parent && parent !== options.root && ancestorCount < 10; parent = parentElementOrShadowHost(parent), ancestorCount++) {
         const parentTokens = calculateCached(parent, allowParentText);
         if (!parentTokens)
           continue;
@@ -203,7 +206,7 @@ function generateSelectorFor(cache: Cache, injectedScript: InjectedScript, targe
         const landmark = getLandmark(parent);
         if (landmark) {
           const landmarkToken: SelectorToken = { engine: 'internal:role', selector: landmark, score: kLandmarkScore };
-          const newChildResult = chooseFirstSelector(injectedScript, parent, element, candidates, allowNthMatch);
+          const newChildResult = chooseFirstSelector(injectedScript, parent, element, hierarchicalCandidates, allowNthMatch);
           if (newChildResult) {
             const hierarchicalResult = [landmarkToken, ...newChildResult];
             if (!bestHierarchicalResult || combineScores(hierarchicalResult) < combineScores(bestHierarchicalResult)) {
@@ -213,7 +216,7 @@ function generateSelectorFor(cache: Cache, injectedScript: InjectedScript, targe
           }
         }
         // Update the best candidate that finds "element" in the "parent".
-        const bestFromParent = chooseFirstSelector(injectedScript, parent, element, candidates, allowNthMatch);
+        const bestFromParent = chooseFirstSelector(injectedScript, parent, element, hierarchicalCandidates, allowNthMatch);
         if (bestFromParent) {
           bestPossibleInParent = bestFromParent;
           const combined = [...parentTokens, ...bestFromParent];
@@ -266,7 +269,7 @@ function getLandmark(element: Element): string | null {
     'list', 'listitem', 'grid', 'table', 'row', 'cell', 'article', 'section', 'menu',
     'menubar', 'menuitem', 'toolbar', 'tab', 'tablist', 'dialog', 'alertdialog', 'group',
     'tree', 'treeitem', 'gridcell', 'rowheader', 'columnheader', 'combobox', 'listbox',
-    'option', 'radiogroup', 'radio', 'checkbox', 'button', 'link'
+    'option', 'radiogroup', 'radio', 'checkbox', 'button', 'link', 'paragraph', 'header',
   ];
   if (landmarkRoles.includes(role))
     return role;

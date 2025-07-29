@@ -179,51 +179,6 @@ const workspace = new Workspace(ROOT_PATH, [
     path: path.join(ROOT_PATH, 'packages', 'playwright-client'),
     files: LICENCE_FILES,
   }),
-  new PWPackage({
-    name: '@playwright/dashboard',
-    path: path.join(ROOT_PATH, 'packages', 'playwright-dashboard'),
-    files: LICENCE_FILES,
-  }),
-  new PWPackage({
-    name: '@playwright/browser-webkit',
-    path: path.join(ROOT_PATH, 'packages', 'playwright-browser-webkit'),
-    files: LICENCE_FILES,
-  }),
-  new PWPackage({
-    name: '@playwright/browser-firefox',
-    path: path.join(ROOT_PATH, 'packages', 'playwright-browser-firefox'),
-    files: LICENCE_FILES,
-  }),
-  new PWPackage({
-    name: '@playwright/browser-chromium',
-    path: path.join(ROOT_PATH, 'packages', 'playwright-browser-chromium'),
-    files: LICENCE_FILES,
-  }),
-  new PWPackage({
-    name: '@playwright/experimental-ct-core',
-    path: path.join(ROOT_PATH, 'packages', 'playwright-ct-core'),
-    files: ['LICENSE'],
-  }),
-  new PWPackage({
-    name: '@playwright/experimental-ct-react',
-    path: path.join(ROOT_PATH, 'packages', 'playwright-ct-react'),
-    files: ['LICENSE'],
-  }),
-  new PWPackage({
-    name: '@playwright/experimental-ct-react17',
-    path: path.join(ROOT_PATH, 'packages', 'playwright-ct-react17'),
-    files: ['LICENSE'],
-  }),
-  new PWPackage({
-    name: '@playwright/experimental-ct-svelte',
-    path: path.join(ROOT_PATH, 'packages', 'playwright-ct-svelte'),
-    files: ['LICENSE'],
-  }),
-  new PWPackage({
-    name: '@playwright/experimental-ct-vue',
-    path: path.join(ROOT_PATH, 'packages', 'playwright-ct-vue'),
-    files: ['LICENSE'],
-  }),
 ]);
 
 if (require.main === module) {

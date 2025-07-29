@@ -303,13 +303,7 @@ class GroupStep extends Step {
 const updateSteps = [];
 
 // Update test runner.
-updateSteps.push(new ProgramStep({
-  command: 'npm',
-  args: ['ci', '--save=false', '--fund=false', '--audit=false'],
-  shell: true,
-  cwd: path.join(__dirname, '..', '..', 'tests', 'playwright-test', 'stable-test-runner'),
-  concurrent: true,
-}));
+// Removed - tests directory deleted for codegen-only fork
 
 // Update bundles.
 for (const bundle of bundles) {
@@ -473,43 +467,10 @@ for (const bundle of bundles) {
 }
 
 // Build/watch trace viewer service worker.
-steps.push(new ProgramStep({
-  command: 'npx',
-  args: [
-    'vite',
-    '--config',
-    'vite.sw.config.ts',
-    'build',
-    ...(watchMode ? ['--watch', '--minify=false'] : []),
-    ...(withSourceMaps ? ['--sourcemap=inline'] : []),
-  ],
-  shell: true,
-  cwd: path.join(__dirname, '..', '..', 'packages', 'trace-viewer'),
-  concurrent: watchMode, // feeds into trace-viewer's `public` directory, so it needs to be finished before trace-viewer build starts
-}));
-
-if (watchMode) {
-  // the build above outputs into `packages/trace-viewer/public`, where the `vite build` for `packages/trace-viewer` is supposed to pick it up.
-  // there's a bug in `vite build --watch` though where the public dir is only copied over initially, but its not watched.
-  // to work around this, we run a second watch build of the service worker into the final output.
-  // bug: https://github.com/vitejs/vite/issues/18655
-  steps.push(new ProgramStep({
-    command: 'npx',
-    args: [
-      'vite', '--config', 'vite.sw.config.ts',
-      'build', '--watch', '--minify=false',
-      '--outDir', path.join(__dirname, '..', '..', 'packages', 'playwright-core', 'lib', 'vite', 'traceViewer'),
-      '--emptyOutDir=false',
-      '--clearScreen=false',
-    ],
-    shell: true,
-    cwd: path.join(__dirname, '..', '..', 'packages', 'trace-viewer'),
-    concurrent: true
-  }));
-}
+// Removed - trace viewer not needed for codegen
 
 // Build/watch web packages.
-for (const webPackage of ['html-reporter', 'recorder', 'trace-viewer']) {
+for (const webPackage of ['recorder']) {
   steps.push(new ProgramStep({
     command: 'npx',
     args: [
@@ -529,20 +490,6 @@ for (const webPackage of ['html-reporter', 'recorder', 'trace-viewer']) {
 if (watchMode) {
   steps.push(new ProgramStep({
     command: 'npx',
-    args: ['vite', '--port', '44223', '--base', '/trace/', '--clearScreen=false'],
-    shell: true,
-    cwd: path.join(__dirname, '..', '..', 'packages', 'trace-viewer'),
-    concurrent: true,
-  }));
-  steps.push(new ProgramStep({
-    command: 'npx',
-    args: ['vite', '--port', '44224', '--clearScreen=false'],
-    shell: true,
-    cwd: path.join(__dirname, '..', '..', 'packages', 'html-reporter'),
-    concurrent: true,
-  }));
-  steps.push(new ProgramStep({
-    command: 'npx',
     args: ['vite', '--port', '44225', '--clearScreen=false'],
     shell: true,
     cwd: path.join(__dirname, '..', '..', 'packages', 'recorder'),
@@ -555,7 +502,6 @@ onChanges.push({
   inputs: [
     'packages/injected/src/**',
     'packages/playwright-core/src/third_party/**',
-    'packages/playwright-ct-core/src/injected/**',
     'packages/playwright-core/src/utils/isomorphic/**',
     'utils/generate_injected_builtins.js',
     'utils/generate_injected.js',
@@ -572,22 +518,23 @@ onChanges.push({
 });
 
 // Generate types.
-onChanges.push({
-  inputs: [
-    'docs/src/api/',
-    'docs/src/test-api/',
-    'docs/src/test-reporter-api/',
-    'utils/generate_types/overrides.d.ts',
-    'utils/generate_types/overrides-test.d.ts',
-    'utils/generate_types/overrides-testReporter.d.ts',
-    'utils/generate_types/exported.json',
-    'packages/playwright-core/src/server/chromium/protocol.d.ts',
-  ],
-  mustExist: [
-    'packages/playwright-core/lib/server/deviceDescriptorsSource.json',
-  ],
-  script: 'utils/generate_types/index.js',
-});
+// Commented out - depends on docs which were removed for codegen-only fork
+// onChanges.push({
+//   inputs: [
+//     'docs/src/api/',
+//     'docs/src/test-api/',
+//     'docs/src/test-reporter-api/',
+//     'utils/generate_types/overrides.d.ts',
+//     'utils/generate_types/overrides-test.d.ts',
+//     'utils/generate_types/overrides-testReporter.d.ts',
+//     'utils/generate_types/exported.json',
+//     'packages/playwright-core/src/server/chromium/protocol.d.ts',
+//   ],
+//   mustExist: [
+//     'packages/playwright-core/lib/server/deviceDescriptorsSource.json',
+//   ],
+//   script: 'utils/generate_types/index.js',
+// });
 
 if (installMode) {
   // Keep browser installs up to date.
@@ -631,7 +578,7 @@ if (watchMode) {
     shell: true,
     concurrent: true,
   }));
-  for (const webPackage of ['html-reporter', 'recorder', 'trace-viewer']) {
+  for (const webPackage of ['recorder']) {
     steps.push(new ProgramStep({
       command: 'npx',
       args: ['tsc', ...(watchMode ? ['-w'] : []), '--preserveWatchOutput', '-p', quotePath(filePath(`packages/${webPackage}`))],
