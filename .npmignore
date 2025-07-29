@@ -1,0 +1,16 @@
+# Build artifacts we want to keep
+!packages/*/lib/
+!packages/*/index.js
+!packages/*/cli.js
+
+# Source files we don't need in the published package
+packages/*/src/
+packages/*/bundles/
+.github/
+tests/
+utils/build/
+utils/doclint/
+*.test.js
+*.spec.js
+test-results/
+playwright-report/

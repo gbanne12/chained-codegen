@@ -9,6 +9,15 @@
     "node": ">=18"
   },
   "license": "Apache-2.0",
+  "files": [
+    "cli.js",
+    "packages/playwright/lib/",
+    "packages/playwright/index.js",
+    "packages/playwright/index.d.ts",
+    "packages/playwright-core/lib/",
+    "packages/playwright-core/index.js",
+    "packages/playwright-core/index.d.ts"
+  ],
   "dependencies": {
     "playwright-core": "^1.53.0"
   },
