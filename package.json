@@ -1,7 +1,9 @@
 {
   "name": "chained-codegen",
-  "private": true,
   "version": "1.0",
+  "bin": {
+    "playwright-custom": "./packages/playwright/cli.js"
+  },
   "description": "Version of playwright codgen that prefers chained locators",
   "engines": {
     "node": ">=18"
