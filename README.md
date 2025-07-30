@@ -1,8 +1,19 @@
 # Overview
 
-This project aims to tweak Playwright’s code generation tool to better resemble the final output for test scripts.
+This project is a fork of the [Playwright](https://playwright.dev/) test tool.
+
+**Original Project**: [Microsoft Playwright](https://github.com/microsoft/playwright)  
+
+The aim is to tweak the codegen tool from a great learning instrument into a useable tool for day to day usage. 
 
 ![Demo](./chained-locators.png)
+
+# License
+This project maintains the same Apache 2.0 license as the original Microsoft Playwright project. See LICENSE for details.
+
+## Acknowledgments
+All the hard work is done by the [Playwright](https://github.com/microsoft/playwright) team at Microsoft. We're grateful for their open-source contribution to the testing community.
+
 
 # Changes
 
@@ -45,8 +56,6 @@ await expect(page.getByRole('dialog')).toBeFocused();
 ```
 
 
-
-
 ## Assert Attribute
 Ensures UI elements have correct classes, states, or properties
 
@@ -59,14 +68,16 @@ The generated code can be edited and lines can be moved up or down. When using p
 
 
 # Getting Started
-Clone the repository.
-Install dependencies:
+Install the package from npm
 
-`npm install`
-`npm playwright install --with-deps`
-`npm playwright codegen` 
-Will run the Playwright codegen as usual with the functionality described above
+`npm install chained-codegen`
+
+Then install the playwright browser binaries (e.g. for Chrome)
+
+`npm chained codegen install chrome`
+
+Finally, start the recorder 
+
+`npm chained-codegen start` 
 
 
-License
-See LICENSE for details.
