@@ -34,6 +34,7 @@ lib/**/injected/
 !README.md
 !LICENSE
 !NOTICE
+!package.json
 # Include browser descriptors.
 !browsers.json
 # Include generated devices descriptors

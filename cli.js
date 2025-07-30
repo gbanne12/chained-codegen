@@ -15,5 +15,10 @@
  * limitations under the License.
  */
 
-const { program } = require('./packages/playwright/lib/program');
+const path = require('path');
+
+// Use the local build with chained locator support
+const localProgramPath = path.join(__dirname, 'packages/playwright-core/lib/cli/program.js');
+const { program } = require(localProgramPath);
+
 program.parse(process.argv);
