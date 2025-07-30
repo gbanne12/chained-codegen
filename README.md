@@ -17,7 +17,7 @@ All the hard work is done by the [Playwright](https://github.com/microsoft/playw
 
 # Changes
 
-## Chained Locators
+## 🔗 Chained locators
 The recorder will prefer chaining locators together to identify a particular element within a section of the page. Avoid collisions with other similar named elements when dealing with multiple menus or grids
 
 ``` typescript 
@@ -30,8 +30,10 @@ await page
 ```
 
 
-## Polling Until Element Removal
-Automatically waits for elements to be removed from the DOM. Wait for spinners, modals, or dynamic elements to disappear
+## 🔍⚠️ Waiting until element is removed
+Generate a command to wait for an element removal from the DOM. 
+
+Wait for spinners, modals, or other dynamic elements to disappear
 
 ``` typescript 
 await expect(page.getByRole('dialog')).toHaveCount(0);
@@ -39,32 +41,40 @@ await expect(page.getByRole('dialog')).toHaveCount(0);
 
 
 
-## Waiting Until Element Is Clickable
-Use the built in actionability checks with a trial click before performing the next actions. 
-The actionability checks will automatically be performed on the next action. However, sometimes theat element may be ready but the page will still be loading asynchronously.  Wait for a specific element to be ready before proceeding. 
+## 🔍👆  Waiting until element is clickable
+Generate a command that waits for an element to be clickable before proceeding.
+
+Waits for playwright's [actionability checks](https://playwright.dev/docs/actionability) to pass for an element click before proceeding. 
+
+Note: Use when the element receiving the trial click differs from the element receiving the next actual click (or check or fill) as these will receive the same actionability checks.
 
 ``` typescript 
 await page.getByRole('main').getByRole('article').click({ trial: true });
 ```
 
 
-## Waiting Until Element Is Focused
-Ensure the element is not just displayed but is now focused and ready to be used.
+##  🎯 Waiting for element focus
+Generate a command that ensures the element is now focused upon.
 
 ``` typescript 
 await expect(page.getByRole('dialog')).toBeFocused();
 ```
 
 
-## Assert Attribute
-Ensures UI elements have correct classes, states, or properties
+##  🏷️ Waiting for element attribute
+Generate a command that ensures elements has the expected classes, states, or properties
 
 ``` typescript 
-await expect(page.getByRole('listitem').getByRole('link', { name: 'Release notes' })).toHaveAttribute('class', 'menu__link');
+await expect(page
+    .getByRole("group", { name: "Related" })
+    .getByRole("menuitem"))
+    .toHaveAttribute('class', 'content');
 ```
 
- ## Editable text grid
-The generated code can be edited and lines can be moved up or down. When using poll until removed the action will have to be generated while the element remains.  It can then be moved down a line to after the removing action.  
+ ##  ✏️ Editable text grid
+The generated code is editable.  Buttons in the tool bar allow for the order of the commands to be rearranged. 
+
+When using `Poll until removed` it is necessary to select the element while it remains in the DOM.  The action to remove it is then generated after and placed on the line below.   When all steps are recorded, the action command can be moved before the poll command in the flow. 
 
 
 # Getting Started
