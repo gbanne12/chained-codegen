@@ -17,8 +17,20 @@
 
 const path = require('path');
 
+// Map 'start' command to 'codegen' to avoid repeating codegen 
+const args = process.argv.slice();
+const commandIndex = args.findIndex(arg => arg === 'start');
+if (commandIndex !== -1) {
+  args[commandIndex] = 'codegen';
+}
+
 // Use the local build with chained locator support
 const localProgramPath = path.join(__dirname, 'packages/playwright-core/lib/cli/program.js');
 const { program } = require(localProgramPath);
 
-program.parse(process.argv);
+program
+  .command('start [url]')
+  .description('open page and generate code for user actions (alias for codegen)')
+  .allowUnknownOption(true);
+
+program.parse(args);
